@@ -1,10 +1,11 @@
 export primer=primer.fasta
 export nodes=4
 export otu_dist=0.03
-export CLASSPATH=$AMPLICON_NOISE_HOME/lib/ampliconflow.jar
 
 #Fixes warning message with uDAPL error message appearing:
 export mpiextra="--mca btl tcp,self"
+
+export CLASSPATH=$AMPLICON_NOISE_HOME/lib/ampliconflow.jar:$AMPLICON_NOISE_HOME/lib/core-1.8.1.jar
 
 if test $# -le 0; then
    echo "Usage: RunPreSplitXL.sh filename.sff [primersequence]"
