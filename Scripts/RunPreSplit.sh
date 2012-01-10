@@ -7,7 +7,7 @@ export mpiextra="--mca btl tcp,self"
 
 
 export CLASSPATH=$AMPLICON_NOISE_HOME/lib/ampliconflow.jar:$AMPLICON_NOISE_HOME/lib/core-1.8.1.jar
-export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_Titanium.dat
+export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_E123.dat
 export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data//Data/Tran.dat 
 
 if test $# -le 0; then
