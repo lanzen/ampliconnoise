@@ -6,7 +6,7 @@ export otu_dist=0.03
 export mpiextra="--mca btl tcp,self"
 
 export CLASSPATH=$AMPLICON_NOISE_HOME/lib/ampliconflow.jar:$AMPLICON_NOISE_HOME/lib/core-1.8.1.jar
-export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_Titanium.dat
+export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_E123.dat
 export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data//Data/Tran.dat 
 
 
@@ -74,7 +74,7 @@ echo "Running PyroNoiseM Clustering"
 for dir in C*
 do
         if [ -d $dir ] ; then
-                mpirun -np $nodes PyroNoiseM -din ${dir}/${dir}.dat -out ${dir}/${dir}_s60_c01 -lin ${dir}/${dir}_X.list -s 60.0 -c 0.01 > ${dir}/${dir}_s60_c01.pout
+                mpirun $mpiextra -np $nodes PyroNoiseM -din ${dir}/${dir}.dat -out ${dir}/${dir}_s60_c01 -lin ${dir}/${dir}_X.list -s 60.0 -c 0.01 > ${dir}/${dir}_s60_c01.pout
         fi
 done
 
