@@ -9,8 +9,8 @@ my $flowSeq = "TACG";
 my $primer    = $ARGV[0];
 my $out       = $ARGV[1];
 
-my $minFlows = 400;
-my $maxFlows = 600;
+my $minFlows = 360;
+my $maxFlows = 720;
 
 my $ffile = "${out}.fa";
 my $dfile = "${out}.dat";
@@ -43,7 +43,7 @@ while(my $line = <STDIN>){
 		my $f = $flows[$j + 4*$newLength];
 		if($f > 0.5){
 		    $signal++;
-		    if($f < 0.7 || $f > 9.49){
+		    if($f < 0.7 || $f > 6.49){
 			$noise++;
 		    }
 		}
@@ -67,7 +67,7 @@ while(my $line = <STDIN>){
 	    }
 		    
 	    printf DFILE "$id $length ";
-	    for($j = 0; $j < 360; $j++){
+	    for($j = 0; $j < $maxFlows; $j++){
 		printf DFILE "$flows[$j] ";
 	    }
 		

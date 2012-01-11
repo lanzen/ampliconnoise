@@ -17,7 +17,7 @@
 #include "PyroNoiseM.h"
 
 /*global constants*/
-static char *usage[] = {"PyroNoise - clusters flowgrams without alignments\n",
+static char *usage[] = {"PyroNoiseM - clusters flowgrams without alignments\n",
 			"-din     string            flow file name\n",
 			"-out     string            cluster input file name\n",
 			"-lin     string            list file\n",
@@ -25,10 +25,11 @@ static char *usage[] = {"PyroNoise - clusters flowgrams without alignments\n",
 			"-v       verbose\n",
 			"-c       double            initial cut-off\n",
 			"-ni                        no index in dat file\n",
+			"-i       integer           number of iterations (default 1000)\n",
 			"-s       double            precision\n",
 			"-rin     file              lookup file name\n"};
 
-static int  nLines = 10;
+static int  nLines = 11;
 
 static double *adLookUp = NULL;
 
@@ -239,7 +240,7 @@ int main(int argc, char* argv[]){
       fflush(stdout);
     }
 
-    while((nIter < MIN_ITER) || ((dMaxDelta > MIN_DELTA) && (nIter < MAX_ITER))){
+    while((nIter < MIN_ITER) || ((dMaxDelta > MIN_DELTA) && (nIter < tParams.nMaxIter))){
       /*Broadcast tau and alignments*/
       if(bVerbose){printf("%d-%d: Broadcast master data\n",rank,nIter);fflush(stdout);}
       MPI_Bcast(&bCont, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -298,7 +299,7 @@ int main(int argc, char* argv[]){
       if(bVerbose){
 	printf("%d: Updated master total = %d, size = %d\n", rank, tMaster.nTotal, tMaster.nSize); fflush(stdout);
       }
-
+      //writeMasterN(nIter,&tMaster, &tUnique, anCentroids, &tFlows, &tParams);
       fflush(stdout);
       nIter++;
     }
@@ -767,6 +768,16 @@ void getCommandLineParams(t_Params *ptParams,int argc,char *argv[])
     ptParams->dSigma = DEF_SIGMA;
   }
 
+  szTemp  = extractParameter(argc,argv,N_MAX_ITER, OPTION);  
+  if(szTemp != NULL){
+    ptParams->nMaxIter = strtol(szTemp, &cError, 10);
+    if(*cError != '\0')
+      goto error;
+  }
+  else{
+    ptParams->nMaxIter = MAX_ITER;
+  }
+
   if(extractParameter(argc,argv, VERBOSE, OPTION)){
     bVerbose = TRUE;
   }
@@ -802,15 +813,27 @@ void getCommandLineParams(t_Params *ptParams,int argc,char *argv[])
 double alignX(short* asA, short* asB, int nLenS, int nLenF)
 {
   double dDist = 0.0;
-  int    i = 0, j = 0, k = 0;
-  int    nLen = 0, nComp  = 0, nCount = 0;
+  int    i     = 0;
+  int    nComp = nLenS;
 
-  for(i = 0; i < nLenF; i++){
+  if(nLenF < nComp){
+	nComp = nLenF;
+  }
+
+  for(i = 0; i < nComp; i++){
     dDist += adLookUp[asA[i]*BINS + asB[i]];
   }
 
-  dDist /= (double) nLenF;
-  
+  if(nLenF > nLenS){
+    dDist += UNSEEN_PENALTY*(nLenF - nLenS);
+    nComp = nLenF;
+  }
+  //else{
+  //dDist += 5.0*(nLenS - nLenF);
+  //}
+
+  dDist /= (double) nComp;
+
   return dDist;
 
 }
@@ -1865,7 +1888,7 @@ void broadcastFlows(t_Flows *ptFlows)
 
 void broadcastUnique(t_Unique *ptUnique)
 {
-  int nN = ptUnique->nN, nU = ptUnique->nU, nM = ptUnique->nM;
+  int i = 0, nN = ptUnique->nN, nU = ptUnique->nU, nM = ptUnique->nM;
 
   MPI_Bcast(&ptUnique->nN,1,MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -1886,7 +1909,7 @@ void broadcastUnique(t_Unique *ptUnique)
 
 void receiveUnique(t_Unique *ptUnique)
 {
-  int nN = -1, nM = -1, nU = -1;
+  int nN = -1, nM = -1, nU = -1, i = 0;
 
   MPI_Bcast(&ptUnique->nN,1,MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -2216,6 +2239,28 @@ void destroyLetter(t_Letter *ptLetter)
   free(ptLetter->anK); ptLetter->anK = NULL;
 }
 
+int lenCmp(const void *pvA, const void* pvB)
+{
+  t_DoubleInt* ptA = (t_DoubleInt *) pvA;
+  t_DoubleInt* ptB = (t_DoubleInt *) pvB;
+
+  if(ptA->nLen < ptB->nLen){
+    return -1;
+  }
+  else if(ptA->nLen > ptB->nLen){
+    return +1;
+  }
+  else{
+    if(ptA->nIdx < ptB->nIdx){
+      return -1;
+    }
+    else{
+      return +1;
+    }
+    return 0;
+  }
+}
+
 void calcCentroidsMaster(int *anChange, int nKStart, int nKFinish, t_Flows *ptFlows, t_Master *ptMaster, int *anCentroids, t_Unique *ptUnique, float* afDistX)
 {
   int i = 0, j = 0, k = 0;
@@ -2233,9 +2278,8 @@ void calcCentroidsMaster(int *anChange, int nKStart, int nKFinish, t_Flows *ptFl
   int   *anLenU = ptUnique->anLenU;
 
   for(i = nKStart; i < nKFinish; i++){ //loop clusters
-    int nIU = 0, nI = 0, nIndex = 0, nL = 0;  
-    double dTau = 0.0, dCount = 0.0, dDistX = 0.0;
-    short  *asFlows = NULL;
+    int nIU = 0, nI = 0, nIndex = 0;  
+    double dTau = 0.0, dCount = 0.0;
     double dMinF = MAX_DBL;
     int    nMinF = NOT_SET;
 
@@ -2250,6 +2294,7 @@ void calcCentroidsMaster(int *anChange, int nKStart, int nKFinish, t_Flows *ptFl
     if(anN[i] > 0 && dCount > MIN_COUNT){
       double *adF = (double *) malloc(anN[i]*sizeof(double));
       int    *anL = (int *) malloc(anN[i]*sizeof(int));
+      int    nL = 0;
 
       if(!anL)
 	goto memoryError;
@@ -2279,7 +2324,6 @@ void calcCentroidsMaster(int *anChange, int nKStart, int nKFinish, t_Flows *ptFl
 	nIndex   = anCN[i] + j;
 	nI       = anI[nIndex];
 	nIU      = anMap[nI];
-	asFlows  = &(asData[nI*nM]);
 	dTau     = adTau[anP[nIndex]];
 
 	for(k = 0; k < nL; k++){
@@ -2830,6 +2874,91 @@ void writeMaster(t_Master *ptMaster, t_Unique *ptUnique, int* anCentroids, t_Flo
   fprintf(stderr, "Failed allocating memory in writeMaster\n");
 }
 
+void writeMasterN(int nIter, t_Master *ptMaster, t_Unique *ptUnique, int* anCentroids, t_Flows *ptFlows, t_Params *ptParams)
+{
+  char *szMasterFile = (char *) malloc(MAX_LINE_LENGTH*sizeof(char));
+  FILE *ofp = NULL;
+  int i = 0, j = 0, l = 0, nK = ptMaster->nK, nM = ptMaster->nM;
+  int *anN = ptMaster->anN, *anCN = ptMaster->anCN, *anI = ptMaster->anI, *anP = ptMaster->anP;
+  double *adTau = ptMaster->adTau;
+  double *adDist = ptMaster->adDist;
+  int nI = 0, nIndex = 0;
+  double dTau = 0.0, dDist = 0.0, dDistMean = 0.0;
+  short *asU = ptUnique->asU;
+  short asCentroid[nM]; 
+  if(!szMasterFile)
+    goto memoryError;
+
+  sprintf(szMasterFile, "%s_%d%s", ptParams->szOutFileStub, nIter, MASTER_SUFFIX);
+  ofp = fopen(szMasterFile, "w");
+  if(ofp){
+    fprintf(ofp, "%d %d\n",nK, nM);
+    
+    for(i = 0; i < nK; i++){
+      for(j = 0; j < nM; j++){
+	asCentroid[j] = NOT_SET;
+      }
+
+      if(anCentroids[i] >= 0){
+	for(j = 0; j < nM; j++){
+	  asCentroid[j] = asU[anCentroids[i]*nM + j];
+	}
+      }
+      /*calc mean dist in cluster*/
+      dDistMean = 0.0;
+      for(j = 0; j < anN[i]; j++){
+	nIndex = anCN[i] + j;
+	dTau   = adTau[anP[nIndex]];
+	dDist  = adDist[anP[nIndex]];
+	dDistMean += dDist*dTau;
+      }
+
+      
+      fprintf(ofp, "%d %d %f\n",i, anN[i], dDistMean);
+	
+      for(j = 0; j < anN[i]; j++){
+	nIndex = anCN[i] + j;
+	dTau   = adTau[anP[nIndex]];
+	dDist  = adDist[anP[nIndex]];
+	nI     = anI[nIndex];
+        
+	fprintf(ofp, "%d-%.5f-%.3f ",nI, dTau, dDist);
+      }
+      fprintf(ofp, "\n");
+      
+      
+      for(l = 0; l < nM; l++){
+	fprintf(ofp, "%d %d ",l,asCentroid[l]);
+	for(j = 0; j < anN[i]; j++){
+	  nIndex = anCN[i] + j;
+	  nI     = anI[nIndex];
+
+	  if(l < ptFlows->anLengths[nI]){
+	    fprintf(ofp, "%d ",ptFlows->asData[nI*nM + l]);
+	  }
+	  else{
+	    fprintf(ofp, "-1 ");
+	  }
+	}
+	fprintf(ofp,"\n");
+      }
+       
+      //fprintf(ofp, "\n");
+      
+    }
+    fclose(ofp);
+  }
+  else{
+    fprintf(stderr, "Failed opening %s for writing\n",szMasterFile);
+  }
+  
+  free(szMasterFile);
+  return;
+
+ memoryError:
+  fprintf(stderr, "Failed allocating memory in writeMaster\n");
+}
+
 void checkCentroidUniqueness(double *adWeight, int *anCentroids, int nK)
 {
   int i = 0, j = 0;
@@ -3247,7 +3376,13 @@ void calcUnique(t_Unique *ptUnique, t_Flows *ptFlows)
 
   reallocateUnique(ptUnique, ptUnique->nU);
 
+ 
   return;
+
+ memoryError:
+  fprintf(stderr,"Failed allocating memory in calcUnique\n");
+  fflush(stderr);
+  exit(EXIT_FAILURE);
 }
 
 void allocateUnique(int nN, int nM, t_Unique *ptUnique)
@@ -3314,6 +3449,8 @@ void allocateUnique(int nN, int nM, t_Unique *ptUnique)
 
 void destroyUnique(t_Unique *ptUnique)
 {
+  int i = 0;
+
   ptUnique->nN = 0;
 
   ptUnique->nM = 0;
@@ -3396,7 +3533,7 @@ void calcDistX(float* afDistX, int iStart, int iFinish, t_Flows *ptFlows, t_Uniq
 			
     for(i = iStart; i < iFinish; i++){
 	for(j = 0; j < nU; j++){
-      		afDistX[i*nU + j] = alignX(&asU[j*nM], &asData[i*nM], nM, anLengths[i]);;
+      		afDistX[i*nU + j] = alignX(&asU[j*nM], &asData[i*nM], ptUnique->anLenU[j], anLengths[i]);;
 	}	
     }
 }

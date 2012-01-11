@@ -21,6 +21,7 @@
 #define OPTION  0      /* optional */
 #define ALWAYS  1      /* required */
 
+#define UNSEEN_PENALTY 10.0
 #define BINS  1000
 #define MAX_S 10
 #define MAX_7 7

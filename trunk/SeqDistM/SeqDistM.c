@@ -13,10 +13,10 @@
 #include <math.h>
 #include <mpi.h>
 
-#include "SeqDist.h"
+#include "SeqDistM.h"
 
 /*global constants*/
-static char *usage[] = {"SeqDist - pairwise distance matrix from a fasta file\n",
+static char *usage[] = {"SeqDistM - pairwise distance matrix from a fasta file\n",
 			"-in     string            fasta file name\n",
 			"Options:\n",
 			"-i output identifiers\n",
@@ -114,7 +114,7 @@ int main(int argc, char* argv[]){
     nN = tData.nSeq; nM = tData.nMaxLen;
 
     /*allocate memory for whole dist matrix*/
-    nSize = (nN*(nN - 1))/2;
+    nSize = nN*nN;
     
     nA = (int) (floor(nSize / numtasks));
 
@@ -133,7 +133,7 @@ int main(int argc, char* argv[]){
     }
     nCount = 0;
     for(i = 0; i < nN; i++){
-      for(j = 0; j < i; j++){
+      for(j = 0; j < nN; j++){
 	double  dDist = needlemanWunsch(&tData.acSequences[i*nM], &tData.acSequences[j*nM],tData.anLen[i], tData.anLen[j], tData.nMaxLen);
 
 	printf("%.8e\n",dDist);
@@ -186,7 +186,7 @@ int main(int argc, char* argv[]){
 
     nN = tData.nSeq; nM = tData.nMaxLen;
     
-    nSize = (nN*(nN - 1))/2;
+    nSize = nN*nN;
     
     nA = (int) floor(nSize / numtasks);
 
@@ -199,7 +199,7 @@ int main(int argc, char* argv[]){
     nCount = 0; nStart = nA0 + (rank - 1)*nA; nFinish = nA0 + rank*nA;
     
     for(i = 0; i < nN; i++){
-      for(j = 0; j < i; j++){
+      for(j = 0; j < nN; j++){
 
 	if(nCount >= nStart){
 	  double  dDist = needlemanWunsch(&tData.acSequences[i*nM], &tData.acSequences[j*nM],tData.anLen[i], tData.anLen[j], tData.nMaxLen);
@@ -355,8 +355,7 @@ double dist(char cA, char cB)
     nA = 3;
     break;
   default:
-    fprintf(stderr, "Non standard base %c\n", cA);
-    return 0.0;
+    fprintf(stderr, "Non standard base\n");
   }
 
   switch(cB){
@@ -373,8 +372,7 @@ double dist(char cA, char cB)
     nB = 3;
     break;
   default:
-    fprintf(stderr, "Non standard base %c\n", cB);
-    return 0.0;
+    fprintf(stderr, "Non standard base\n");
   }
 
   return adLookUp[nA*N_BASES + nB];
@@ -645,10 +643,7 @@ double needlemanWunsch(const char* acA, const char* acB, int nLenA, int nLenB, i
 	dChoice2 = aadFMatrix[i][j-1] + dGap;
       }
 
-      if(j == nLenB){
-	dChoice3 = aadFMatrix[i-1][j];
-      }
-      else{
+      if(TRUE){
 	double dGap = 0.0;
 	int    nCurrH = aanHA[i][j - 1];
 	int    nNewH  = returnHomopolymerA(LEFT, aanHA, aanMoves, i, j, acA, acB);
@@ -701,7 +696,7 @@ double needlemanWunsch(const char* acA, const char* acB, int nLenA, int nLenB, i
       acAlignA[nCount] = acA[i - 1];
    
       if(j == nLenB){
-	acAlignB[nCount] = T_GAP;
+	acAlignB[nCount] = GAP;
       }
       else{
 	acAlignB[nCount] = GAP;

@@ -10,9 +10,9 @@ my $primer    = $ARGV[0];
 
 my $out       = $ARGV[1];
 
-my $minFlows = 400;
+my $minFlows = 360;
 
-my $maxFlows = 600;
+my $maxFlows = 720;
 
 my $ffile = "${out}.fa";
 my $dfile = "${out}.dat";

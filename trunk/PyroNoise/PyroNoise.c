@@ -751,13 +751,22 @@ double alignX(short* asA, short* asB, int nLenS, int nLenF)
 {
   double dDist = 0.0;
   int    i = 0, j = 0, k = 0;
-  int    nLen = 0, nComp  = 0, nCount = 0;
+  int    nLen = 0, nComp  = nLenS, nCount = 0;
 
-  for(i = 0; i < nLenF; i++){
+  if(nLenF < nComp){
+    nComp = nLenF;
+  }
+
+  for(i = 0; i < nComp; i++){
     dDist += adLookUp[asA[i]*BINS + asB[i]];
   }
 
-  dDist /= (double) nLenF;
+  if(nLenF > nLenS){
+    dDist += UNSEEN_PENALTY*(nLenF - nLenS);
+    nComp = nLenF;
+  }
+
+  dDist /= (double) nComp;
   
   return dDist;
 

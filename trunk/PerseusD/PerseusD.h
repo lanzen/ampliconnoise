@@ -31,7 +31,18 @@ typedef struct s_Params
   char *szLookUpFile;
 
   int nSkew;
+
+  double dAlpha;
+
+  double dBeta;
 } t_Params;
+
+typedef struct s_IntSort
+{
+  int nFreq;
+
+  int nI;
+} t_IntSort;
 
 typedef struct s_Data
 {
@@ -39,11 +50,13 @@ typedef struct s_Data
   
   char** aszID;
 
-  double* adFreq;
+  int* anFreq;
 
   int    nSeq;
 
   int    nMaxLen;
+
+  int*   anSort;
 
   int*   anLen;
 } t_Data;
@@ -54,7 +67,7 @@ typedef struct s_Data
 /**Constants**/
 #define MAX_LINE_LENGTH 65536
 #define DELIM           " \n"
-
+#define DELIM2          ",:"
 #define FALSE 0
 #define TRUE  1
 
@@ -65,16 +78,22 @@ typedef struct s_Data
 #define LOOKUP_FILE_FLAG     "-rin"
 #define REF_INPUT_FILE       "-tin"
 #define SEQ_INPUT_FILE       "-sin"
-#define USE_IMBALANCE        "-d"
+#define USE_BALANCE          "-b"
 #define OUTPUT_ALIGNMENTS    "-a"
 #define SKEW                 "-s"
+#define CLASSIFY             "-c"
 
 #define GAP_PENALTY     1.5
 #define GAP             '-'
 #define T_GAP           '.'
 #define COMMA           ","
 
-#define DEFAULT_SKEW          1
+#define DEFAULT_SKEW          2
+#define DEFAULT_ALPHA_1       -6.6925       
+#define DEFAULT_BETA_1         0.5652 
+#define DEFAULT_ALPHA_2       -5.54285 
+#define DEFAULT_BETA_2        0.328
+
 #define GAP_PENALTY_N         15.0
 #define HOMOPOLYMER_PENALTY   4.0
 
@@ -125,14 +144,19 @@ typedef struct s_Align
   int *anR;
 } t_Align;
 
+typedef struct s_Result
+{
+  double dX;
+  double dY;
+  double dZ;
+  double dP;
+} t_Result;
 
 /*User defined functions*/
 
 void getCommandLineParams(t_Params *ptParams,int argc,char *argv[]);
 
 void readData(char* szInputFile, t_Data *ptData);
-
-void getCommandLineParams(t_Params *ptParams,int argc,char *argv[]);
 
 void needlemanWunsch(t_Align *ptAlign, const char* acA, const char* acB, int nLenA, int nLenB);
 
@@ -158,14 +182,16 @@ char* getTrimera(int *pnCLength, t_Align* ptA, t_Align* ptB, t_Align* ptC, int n
 
 char* getQuamera(int *pnCLength, t_Align* ptA, t_Align* ptB, t_Align* ptC, t_Align* ptD, int nSplit1, int nSplit2, int nSplit3, int nLenI);
 
-double calcLoonIndex(t_Data *ptSeqData, t_Data *ptRefData, int nI, int nP1, int nP2, int* pnSplit, t_Params *ptParams);
+double calcLoonIndex(t_Data *ptSeqData, t_Data *ptRefData, int nI, int nP1, int nP2, int* pnSplit, int* pnParentD, t_Params *ptParams);
 
 void destroyData(t_Data *ptData);
 
-int alignAll(int nI, int nLenI, int *pnBest, int *pnBestJ, int *anRestrict, int nK, t_Data *ptSeqData, t_Data *ptRefData, t_Align* atAlign, t_Params *ptParams);
+int alignAll(int nI, int nLenI, int *pnBest, int *pnBestJ, int *anRestrict, int nK, t_Data *ptSeqData, t_Data *ptRefData, t_Align* atAlign, t_Params *ptParams, int *anChi);
 
 int getBestChimera(int nK, t_Data *ptRefData, int* pnP1, int* pnP2, int *pnSplit, int* anRestrict, int nLenI, t_Align* atAlign, int* anD, int* anR, int* anBestD, int* anBestR);
 
 int getBestTrimera(int nK, t_Data *ptRefData, int* pnT1, int* pnT2, int* pnT3, int *pnSplit1, int *pnSplit2, int* anRestrict, int nLenI, t_Align* atAlign, int* anD, int* anR, int* anBestD, int *anBestR);
+
+void sortByFreq(t_Data *ptData);
 
 #endif
