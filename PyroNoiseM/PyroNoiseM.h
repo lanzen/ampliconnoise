@@ -41,6 +41,7 @@
 #define OUT_FILE_STUB            "-out"
 #define INIT_FILE                "-lin"
 #define DATA_FILE                "-din"
+#define N_MAX_ITER               "-i"
 #define NO_INDEX                 "-ni"
 #define SIGMA                    "-s"
 #define INIT_CUT                 "-c"
@@ -73,6 +74,7 @@
 #define GAP     -2
 #define UPPER_S  2
 
+#define UNSEEN_PENALTY 10.0
 #define MIN_WEIGHT 0.1  
 /* i sequence k cluster j pos*/
 #define aindex(i,k,j)   ((i)*nM*nK + nM*(k) + (j)) 
@@ -177,6 +179,16 @@ typedef struct s_Unique
   int   *anWeights;
 } t_Unique;
 
+typedef struct s_DoubleInt
+{
+  int nLen;
+
+  int nUIdx;
+
+  int nIdx;
+
+  double dWeight;
+} t_DoubleInt;
 
 typedef struct s_Params
 {
@@ -187,6 +199,8 @@ typedef struct s_Params
   char *szInitFile;
 
   char *szLookUpFile;
+
+  int nMaxIter;
 
   int bNoIndex;
 
@@ -312,5 +326,9 @@ void reallocateUnique(t_Unique *ptUnique, int nNewSize);
 void calcUnique(t_Unique *ptUnique, t_Flows *ptFlows);
 
 void calcDistX(float* afDistX, int iStart, int iFinish, t_Flows *ptFlows, t_Unique *ptUnique);
+
+int lenCmp(const void *pvA, const void* pvB);
+
+void writeMasterN(int nIter, t_Master *ptMaster, t_Unique *ptUnique, int* anCentroids, t_Flows *ptFlows, t_Params *ptParams);
 
 #endif

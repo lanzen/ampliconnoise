@@ -121,35 +121,39 @@ int main(int argc, char* argv[])
     }
     i++;
   }
-
-  anLast = (int *) malloc(sizeof(int)*nLast);
-  nCount = 0;
-  printf("%d %d\n",i,nLast);
-  iL = i;
-  for(; i < nSplit; i++){
-    for(j = 0; j < aptSplit[i]->nN; j++){
-      anLast[nCount + j] = aptSplit[i]->anLeaves[j];
-    }
-    nCount += aptSplit[i]->nN;
-  }
-
-  sprintf(szDir, "C%03d+",iL,nCount);
   
-  mkdir(szDir, S_IRWXU);
+  if(nLast > 0){
+    anLast = (int *) malloc(sizeof(int)*nLast);
+    nCount = 0;
+    printf("%d %d\n",i,nLast);
+    iL = i;
+    for(; i < nSplit; i++){
+      for(j = 0; j < aptSplit[i]->nN; j++){
+	anLast[nCount + j] = aptSplit[i]->anLeaves[j];
+      }
+      nCount += aptSplit[i]->nN;
+    }
 
-  sprintf(szTreeFile,"%s/%s%s",szDir,szDir,TREE_SUFFIX);
-  sprintf(szDatFile,"%s/%s%s",szDir,szDir,DAT_SUFFIX);
-  sprintf(szListFile,"%s/%s%s",szDir,szDir,LIST_SUFFIX);
+    if(nCount > 0){
+      sprintf(szDir, "C%03d+",iL);
+  
+      mkdir(szDir, S_IRWXU);
 
-  dfp = fopen(szDatFile, "w");
+      sprintf(szTreeFile,"%s/%s%s",szDir,szDir,TREE_SUFFIX);
+      sprintf(szDatFile,"%s/%s%s",szDir,szDir,DAT_SUFFIX);
+      sprintf(szListFile,"%s/%s%s",szDir,szDir,LIST_SUFFIX);
 
-  if(dfp){
-    writeData(dfp, &tData, nLast, anLast, &tMap);
+      dfp = fopen(szDatFile, "w");
+
+      if(dfp){
+	writeData(dfp, &tData, nLast, anLast, &tMap);
     
-    fclose(dfp);
-  }
+	fclose(dfp);
+      }
+    }
 
-  free(anLast);
+    free(anLast);
+  }
   exit(EXIT_SUCCESS);
 }
 

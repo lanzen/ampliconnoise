@@ -1,6 +1,6 @@
 #!/bin/bash
 
-defaultPrimer="ATTAGATACCC\w{1}GGTAG" #default primer
+defaultPrimer="ATTAGATACCC[ACTG]GGTAG" #default primer
 nodes=8                              #no. of cluster nodes to use
 
 sfffile=$1; #first argument name of sff file (necessary)
@@ -43,7 +43,7 @@ fi
 
 rm ${stub}_U_I.ndist
 
-SplitClusterEven -din ${stub}.dat -min ${stub}.map -tin ${stub}_U_I.tree -s 3000 -m 500 > ${stub}_split.stats
+SplitClusterEven -din ${stub}.dat -min ${stub}.map -tin ${stub}_U_I.tree -s 5000 -m 1000 > ${stub}_split.stats
 
 echo "Calculating .fdist files"
 for c in C*
@@ -63,13 +63,11 @@ do
         fi
 done
 
-
-
 echo "Running PyroNoise"
 for dir in C*
 do
         if [ -d $dir ] ; then
-                mpirun -np $nodes PyroNoise -din ${dir}/${dir}.dat -out ${dir}/${dir}_s60_c01 -lin ${dir}/${dir}_X.list -s 60.0 -c 0.01 > ${dir}/${dir}_s60_c01.pout
+                mpirun -np $nodes PyroNoiseM -din ${dir}/${dir}.dat -out ${dir}/${dir}_s60_c01 -lin ${dir}/${dir}_X.list -s 60.0 -c 0.01 > ${dir}/${dir}_s60_c01.pout
         fi
 done
 
@@ -83,8 +81,7 @@ mpirun -np $nodes SeqDist -in All_s60_c01_T220.fa > All_s60_c01_T220.seqdist
 
 FCluster -in All_s60_c01_T220.seqdist -out All_s60_c01_T220_S > All_s60_c01_T220.fcout
 
-rm All_s60_c01_T220.seqdist
-
 echo "Running SeqNoise"
 mpirun -np $nodes SeqNoise -in All_s60_c01_T220.fa -din All_s60_c01_T220.seqdist -lin All_s60_c01_T220_S.list -out All_s60_c01_T220_s30_c08 -s 30.0 -c 0.08 -min All_s60_c01.mapping > All_s60_c01_T220_s30_c08.snout
 
+rm All_s60_c01_T220.seqdist

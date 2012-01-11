@@ -13,25 +13,24 @@
 #include <math.h>
 #include <gsl/gsl_sf.h>
 #include <gsl/gsl_randist.h>
-#include "Perseus.h"
+#include "PerseusD.h"
 
 /*global constants*/
-static char *usage[] = {"Perseus - slays monsters\n",
+static char *usage[] = {"PerseusD - slays monsters\n",
 			"-sin     string            seq file name\n",
 			"Options:\n",
-			"-s       integer\n",
+			"-c       float,float       set alpha,beta default = -5.54,0.33\n",
+			"-s       integer           set skew default = 2\n",
 			"-tin     string            reference sequence file\n",
 			"-a                         output alignments\n",
-			"-d                         use imbalance\n",
+			"-b                         do not use imbalance\n",
 			"-rin     string            lookup file name\n"};
 
-static int  nLines = 8;
+static int  nLines = 9;
 
 static char szSequence[] = "ACGTNacgtn-";
 
 static double* adLookUp = NULL;
-
-
 
 int main(int argc, char* argv[]){
   int a = 0, i = 0, j = 0, k = 0, l = 0, m = 0, n = 0, nN = 0, nK = 0;
@@ -41,6 +40,9 @@ int main(int argc, char* argv[]){
   char *acTest = NULL;
   int    nTestMatch = -1, nTestLength = -1;
   double dTest = 0.0;
+  int nParentD = 0;
+  int* anChi = NULL;
+  t_Result *atResult;
 
   /*get command line params*/
   getCommandLineParams(&tParams, argc, argv);
@@ -60,30 +62,45 @@ int main(int argc, char* argv[]){
   /*number of reference sequences*/
   nK = tRefData.nSeq;
   
+  atResult = (t_Result *) malloc(nN*sizeof(t_Result));
+  if(!atResult)
+    goto memoryError;
+  
+  anChi = (int *) malloc(sizeof(int)*nN);
+  if(!anChi){
+    goto memoryError;
+  }
+  for(i = 0; i < nN; i++){
+    anChi[i] = FALSE;
+    atResult[i].dX = 0.0;
+    atResult[i].dY = 0.0;
+    atResult[i].dZ = 0.0;
+    atResult[i].dP = 0.0;
+  }
+
   /*max length of sequences*/
   nNLen = tSeqData.nMaxLen; 
 
   /*max length of references*/
   nKLen = tRefData.nMaxLen;
-
-  printf("%d %d\n",nN, nK);
-
+  
+  sortByFreq(&tSeqData);
+  
   for(i = 0; i < nN; i++){
     t_Align atAlign[nK];
-    int nLenI = tSeqData.anLen[i];
-    int anD[nLenI], anR[nLenI], anBestD[nLenI], anBestR[nLenI];
     double dBest  = BIG_DBL, dBestChi = 0.0, dBestTri = 0.0;
     int    nBestJ = -1;
     int    nBest = BIG_INT, nBestChi = BIG_INT, nBestTri = BIG_INT;
     int    nSplit = -1, nSplit1 = -1, nSplit2 = -1, nP1 = -1, nP2 = -1, nT1 = -1, nT2 = -1, nT3 = -1;
     int    anRestrict[nK];
     int    nCompare = 0;
-    double dLoon = 0.0, dCIndex = 0.0;
-
-    printf("%d %s ",i, tSeqData.aszID[i]);
+    double dLoon = 0.0, dCIndex = 0.0, dP = 0.0, dR = 0.0;
+    int    nI = tSeqData.anSort[i];
+    int    nLenI = tSeqData.anLen[nI];
+    int    anD[nLenI], anR[nLenI], anBestD[nLenI], anBestR[nLenI];
 
     /*do pairwise alignments and get best hit for each sequence i*/
-    nCompare = alignAll(i, nLenI, &nBest, &nBestJ, anRestrict, nK, &tSeqData, &tRefData, atAlign, &tParams);
+    nCompare = alignAll(nI, nLenI, &nBest, &nBestJ, anRestrict, nK, &tSeqData, &tRefData, atAlign, &tParams, anChi);
 
     if(nCompare >= 2){
 
@@ -96,10 +113,7 @@ int main(int argc, char* argv[]){
       dBestChi = ((double) nBestChi)/((double) nLenI);
       dBestTri = ((double) nBestTri)/((double) nLenI);
 	
-      dBest = needlemanWunschN(&tSeqData.acSequences[i*nNLen],&tRefData.acSequences[nBestJ*nKLen] , nLenI, tRefData.anLen[nBestJ], nKLen);
-	
-      printf("%d %d %s ",nBest, nBestJ, tRefData.aszID[nBestJ]);
-      printf("%d %d %d %s %s ", nBestChi, nP1, nP2, tRefData.aszID[nP1], tRefData.aszID[nP2]);
+      dBest = needlemanWunschN(&tSeqData.acSequences[nI*nNLen],&tRefData.acSequences[nBestJ*nKLen] , nLenI, tRefData.anLen[nBestJ], nKLen);
 	
       if(nBestChi - nBestTri >= 3){
 	
@@ -115,35 +129,46 @@ int main(int argc, char* argv[]){
 	acTest =  getChimera(&nTestLength, &atAlign[nP1], &atAlign[nP2], nSplit, nLenI);
       }
     	
-      dTest = needlemanWunschN(&tSeqData.acSequences[i*nNLen], acTest, nLenI, nTestLength, nKLen);
+      dTest = needlemanWunschN(&tSeqData.acSequences[nI*nNLen], acTest, nLenI, nTestLength, nKLen);
 
-      dCIndex = calcCIndex(i, nP1, nP2, acTest, nTestLength, &tRefData, &tSeqData);
+      dCIndex = calcCIndex(nI, nP1, nP2, acTest, nTestLength, &tRefData, &tSeqData);
 
-      dLoon = calcLoonIndex(&tSeqData, &tRefData, i, nP1, nP2, &nSplit, &tParams);
+      dLoon = calcLoonIndex(&tSeqData, &tRefData, nI, nP1, nP2, &nSplit, &nParentD, &tParams);
       
-      printf("%f %f %f %f ",dBest, dCIndex, dCIndex - dBest, dLoon);
-      
-      printf("%d %d %d ", nBestChi, nBestTri, nSplit);
+      if(dCIndex >= 0.15 || dCIndex - dBest > 0.0){
+        dP = 0.0;
+      }
+      else{
+        dR = tParams.dAlpha + tParams.dBeta*dLoon;
+        dP = 1.0/(1.0 + exp(-dR));
+      }
+      if(dP > 0.5){
+	anChi[nI] = TRUE;
+      }
+      atResult[nI].dX = dCIndex;
+      atResult[nI].dY = dCIndex - dBest;
+      atResult[nI].dZ = dLoon;
+      atResult[nI].dP = dP;
 
       switch(nTestMatch){
       case GOOD:
-	printf("Good\n");
+	//printf("Good\n");
 	break;
       case CHIMERA:
-	printf("Chimera\n");
+	//printf("Chimera\n");
 	break;
       case TRIMERA:
-	printf("Trimera\n");
+	//printf("Trimera\n");
 	break;
       case QUAMERA:
-	printf("Quamera\n");
+	//printf("Quamera\n");
 	break;
       }
 
       free(acTest);
     }
     else{
-      printf("0 0 Null 0 0 0 Null Null 0.0 0.0 0.0 0.0 0 0 0 Null\n");
+      //printf("0 0 Null 0 0 0 Null Null 0.0 0.0 0.0 0.0 0 0 0 Null\n");
     }
 
     for(j = 0; j < nK; j++){
@@ -159,9 +184,14 @@ int main(int argc, char* argv[]){
     
   }
 
+  for(i = 0; i < nN; i++){
+    printf("%s %f %f %f %f\n",tSeqData.aszID[i],atResult[i].dX, atResult[i].dY, atResult[i].dZ, atResult[i].dP);
+  }
+
   /*free allocated memory*/
   free(adLookUp);
-
+  free(anChi);
+  free(atResult);
   destroyData(&tSeqData);
   destroyData(&tRefData);
 
@@ -217,7 +247,7 @@ void getCommandLineParams(t_Params *ptParams,int argc,char *argv[])
   if(ptParams->szSeqInputFile == NULL)
     goto error;
   
-    /*get parameter file name*/
+  /*get parameter file name*/
   ptParams->szRefInputFile  = extractParameter(argc,argv, REF_INPUT_FILE,OPTION);  
   if(ptParams->szRefInputFile == NULL){
     ptParams->szRefInputFile = ptParams->szSeqInputFile;
@@ -234,11 +264,38 @@ void getCommandLineParams(t_Params *ptParams,int argc,char *argv[])
     ptParams->nSkew = DEFAULT_SKEW;
   }
 
-  if(extractParameter(argc,argv,USE_IMBALANCE,OPTION)){  
-    ptParams->bImbalance = TRUE;
+  if(extractParameter(argc,argv,USE_BALANCE,OPTION)){  
+    ptParams->bImbalance = FALSE;
   }
   else{
-    ptParams->bImbalance = FALSE;
+    ptParams->bImbalance = TRUE;
+  }
+
+  szTemp  = extractParameter(argc,argv,CLASSIFY,OPTION);  
+  if(szTemp != NULL){
+    char *szTok = strtok(szTemp, DELIM2);
+    
+    ptParams->dAlpha = strtod(szTok,&cError);
+    if(*cError!='\0'){
+      goto error;
+    }
+
+    szTok = strtok(NULL, DELIM2);
+    
+    ptParams->dBeta = strtod(szTok,&cError);
+    if(*cError!='\0'){
+      goto error;
+    }
+  }
+  else{
+    if(ptParams->bImbalance == FALSE){
+      ptParams->dAlpha = DEFAULT_ALPHA_1;
+      ptParams->dBeta  = DEFAULT_BETA_1;
+    }
+    else{
+      ptParams->dAlpha = DEFAULT_ALPHA_2;
+      ptParams->dBeta  = DEFAULT_BETA_2;
+    }
   }
 
   if(extractParameter(argc,argv,OUTPUT_ALIGNMENTS,OPTION)){  
@@ -677,7 +734,7 @@ char* revstr(char *szID, char cD)
   }
 }
 
-double getWeight(char *szID)
+int getWeight(char *szID)
 {
   char   *szBreak  = revstr(szID, WEIGHTDELIM); 
   double dWeight   = 0.0;
@@ -695,7 +752,7 @@ double getWeight(char *szID)
     dWeight = 1.0;
   }
 
-  return dWeight;
+  return (int) floor(dWeight + 1.0e-7);
 }
 
 static char szNoisy[]    = "N";
@@ -746,9 +803,10 @@ void readData(char* szInputFile, t_Data *ptData)
   ptData->aszID        = (char **) malloc(ptData->nSeq*sizeof(char *));
   
   nM = ptData->nMaxLen;
+  ptData->anSort      = (int *) malloc(ptData->nSeq*sizeof(int));
   ptData->acSequences = (char *) malloc(ptData->nSeq*nM*sizeof(char));
   ptData->anLen       = (int *)  malloc(ptData->nSeq*sizeof(int));
-  ptData->adFreq      = (double *) malloc(ptData->nSeq*sizeof(double));
+  ptData->anFreq      = (int *) malloc(ptData->nSeq*sizeof(int));
 
   ifp = fopen(szInputFile, "r");
 
@@ -762,7 +820,7 @@ void readData(char* szInputFile, t_Data *ptData)
 	szBrk = strpbrk(szLine, " \n");
 	(*szBrk) = '\0';
 	ptData->aszID[nSequences] = strdup(szLine + 1);
-	ptData->adFreq[nSequences] = getWeight(ptData->aszID[nSequences]);
+	ptData->anFreq[nSequences] = getWeight(ptData->aszID[nSequences]);
 	nPos = 0;
 	nSequences++;
       }
@@ -1468,7 +1526,7 @@ int calcOffset(char *acAlign, int nLen){
   return i;
 }
 
-double calcLoonIndex(t_Data *ptSeqData, t_Data *ptRefData, int nI, int nP1, int nP2, int* pnSplit, t_Params *ptParams)
+double calcLoonIndex(t_Data *ptSeqData, t_Data *ptRefData, int nI, int nP1, int nP2, int* pnSplit, int* pnParentD, t_Params *ptParams)
 {
   int i = 0, nLenI = ptSeqData->anLen[nI], nLenP1 = ptRefData->anLen[nP1], nLenP2 = ptRefData->anLen[nP2];
   FILE *ofp = NULL;
@@ -1484,6 +1542,7 @@ double calcLoonIndex(t_Data *ptSeqData, t_Data *ptRefData, int nI, int nP1, int 
   double dRet = 0;
   char szTempFasta[MAX_LINE_LENGTH], szTempAlign[MAX_LINE_LENGTH];
   int nTGap1 = 0, nTGap2 = 0, nTGap3 = 0,nMaxTGap = -1;
+  int nParentD = 0;
 
   /*create sequence filenames*/
   if(ptParams->bOutputAlignments == FALSE){
@@ -1560,6 +1619,13 @@ double calcLoonIndex(t_Data *ptSeqData, t_Data *ptRefData, int nI, int nP1, int 
       }
     }
   }
+
+  for(i = 0; i < nTLen; i++){
+    if(acSequences[nMaxLen + i] != acSequences[2*nMaxLen + i]){
+      nParentD++;
+    }
+  }
+
 
   anDiff1[nDiff1] = nTLen;
   anDiff2[nDiff2] = nTLen;
@@ -1708,6 +1774,7 @@ double calcLoonIndex(t_Data *ptSeqData, t_Data *ptRefData, int nI, int nP1, int 
   }
 
   (*pnSplit) = nSplit;
+  (*pnParentD) = nParentD;
 
   /*free up memory*/
   destroyData(&tAlign);
@@ -1724,12 +1791,59 @@ void destroyData(t_Data *ptData)
     for(i = 0; i < ptData->nSeq; i++){
       free(ptData->aszID[i]);
     }
+    free(ptData->anSort);
     free(ptData->aszID);
-    free(ptData->adFreq);
+    free(ptData->anFreq);
   }
 }
 
-int alignAll(int nI, int nLenI, int *pnBest, int *pnBestJ, int *anRestrict, int nK, t_Data *ptSeqData, t_Data *ptRefData, t_Align* atAlign, t_Params *ptParams)
+int intComp(const void *a,const void *b) 
+{
+  t_IntSort *ptA = (t_IntSort *)a;
+  t_IntSort *ptB = (t_IntSort *)b;
+  if (ptA->nFreq==ptB->nFreq){
+    if(ptA->nI > ptB->nI)
+      return -1;
+    else
+      return 1;
+
+    return 0;
+  }
+  else{
+    if(ptA->nFreq > ptB->nFreq)
+      return -1;
+    else
+      return 1;
+  }
+}
+
+void sortByFreq(t_Data *ptData)
+{
+  t_IntSort *atSort = (t_IntSort *) malloc(sizeof(t_IntSort)*ptData->nSeq);
+  int i = 0;
+  
+  for(i = 0; i < ptData->nSeq; i++){
+    atSort[i].nI = i;
+    atSort[i].nFreq = ptData->anFreq[i];
+  }
+
+  qsort(atSort,ptData->nSeq,sizeof(t_IntSort),intComp);
+
+  for(i = 0; i < ptData->nSeq; i++){
+    ptData->anSort[i] = atSort[i].nI;
+  }
+  
+  free(atSort);
+  return;
+
+ memoryError:
+  fprintf(stderr, "Failed allocating memory in sortByFreq aborting...\n");
+  fflush(stderr);
+  exit(EXIT_FAILURE);
+}
+
+
+int alignAll(int nI, int nLenI, int *pnBest, int *pnBestJ, int *anRestrict, int nK, t_Data *ptSeqData, t_Data *ptRefData, t_Align* atAlign, t_Params *ptParams, int* anChi)
 {
   int j = 0, nCompare = 0, nBest = BIG_INT, nBestJ = -1;
   int nNLen = ptSeqData->nMaxLen, nKLen = ptRefData->nMaxLen;
@@ -1737,7 +1851,7 @@ int alignAll(int nI, int nLenI, int *pnBest, int *pnBestJ, int *anRestrict, int 
   for(j = 0; j < nK; j++){
     int     nDist = 0;
 
-    if(strcmp(ptRefData->aszID[j],ptSeqData->aszID[nI]) != 0 && ptRefData->adFreq[j] >= ptParams->nSkew*ptSeqData->adFreq[nI]){
+    if(anChi[j] == FALSE && (strcmp(ptRefData->aszID[j],ptSeqData->aszID[nI]) != 0 && ptRefData->anFreq[j] > ptParams->nSkew*ptSeqData->anFreq[nI])){
 
       needlemanWunsch(&atAlign[j], &ptSeqData->acSequences[nI*nNLen], &ptRefData->acSequences[j*nKLen], nLenI, ptRefData->anLen[j]);
       
@@ -1775,7 +1889,7 @@ int getBestChimera(int nK, t_Data *ptRefData, int* pnP1, int* pnP2, int *pnSplit
     for(j = 0; j < nK; j++){
       if(anRestrict[j] == FALSE){
 
-	if(atAlign[j].anD[k]  < anD[k] || atAlign[j].anD[k] == anD[k] && ptRefData->adFreq[j] > ptRefData->adFreq[anBestD[k]]){
+	if(atAlign[j].anD[k]  < anD[k] || atAlign[j].anD[k] == anD[k] && ptRefData->anFreq[j] > ptRefData->anFreq[anBestD[k]]){
 	  anD[k]     = atAlign[j].anD[k];
 	  anBestD[k] = j;
 	}
@@ -1789,7 +1903,7 @@ int getBestChimera(int nK, t_Data *ptRefData, int* pnP1, int* pnP2, int *pnSplit
 
     for(j = 0; j < nK; j++){
       if(anRestrict[j] == FALSE){
-	if(atAlign[j].anR[k] < anR[k] || atAlign[j].anR[k] == anR[k] && ptRefData->adFreq[j] > ptRefData->adFreq[anBestR[k]]){
+	if(atAlign[j].anR[k] < anR[k] || atAlign[j].anR[k] == anR[k] && ptRefData->anFreq[j] > ptRefData->anFreq[anBestR[k]]){
 	  anR[k]     = atAlign[j].anR[k];
 	  anBestR[k] = j;
 	}
@@ -1833,7 +1947,7 @@ int getBestTrimera(int nK, t_Data *ptRefData, int* pnT1, int* pnT2, int* pnT3, i
 
 	  int nX = atAlign[j].anD[l] - atAlign[j].anD[k];
 		
-	  if(nX < aanT[k][l] || nX == aanT[k][l] && ptRefData->adFreq[j] > ptRefData->adFreq[aanBestT[k][l]]){
+	  if(nX < aanT[k][l] || nX == aanT[k][l] && ptRefData->anFreq[j] > ptRefData->anFreq[aanBestT[k][l]]){
 	    aanT[k][l] = nX;
 	    aanBestT[k][l] = j;
 	  }
