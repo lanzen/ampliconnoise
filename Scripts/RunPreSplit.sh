@@ -9,7 +9,7 @@ export mpiextra="--mca btl tcp,self"
 
 export CLASSPATH=$AMPLICON_NOISE_HOME/lib/ampliconflow.jar:$AMPLICON_NOISE_HOME/lib/core-1.8.1.jar
 export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_Titanium.dat
-export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data//Data/Tran.dat 
+export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/Tran.dat 
 
 if test $# -le 0; then
    echo "Usage: RunPreSplitXL.sh filename.sff [primersequence]"
