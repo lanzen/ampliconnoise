@@ -75,7 +75,7 @@ for file in *.raw; do
     echo "Clustering PyroDist output for ${stub}"
     FCluster -in ${stub}.fdist -out ${stub}_X > ${stub}.fout
 
-    echo "Running Pyronoise for ${stub}"
+    echo "Running PyronoiseM for ${stub}"
     mpirun -np $nodes PyroNoiseM -din ${stub}.dat -out ${stub}_s60_c01 -lin ${stub}_X.list -s 60.0 -c 0.01 > ${stub}_s60_c01.pout
 
     echo "Cropping barcodes, primes and low quality end (at 400 bp)"
