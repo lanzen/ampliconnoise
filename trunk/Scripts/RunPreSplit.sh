@@ -2,6 +2,7 @@ export primer=primer.fasta
 export nodes=4
 export otu_dist=0.03
 
+
 #Fixes warning message with uDAPL error message appearing:
 export mpiextra="--mca btl tcp,self"
 
