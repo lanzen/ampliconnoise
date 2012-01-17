@@ -8,11 +8,11 @@ export mpiextra="--mca btl tcp,self"
 
 
 export CLASSPATH=$AMPLICON_NOISE_HOME/lib/ampliconflow.jar:$AMPLICON_NOISE_HOME/lib/core-1.8.1.jar
-export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_Titanium.dat
+export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_E123.dat
 export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/Tran.dat 
 
 if test $# -le 0; then
-   echo "Usage: RunPreSplit.sh filename.sff [primersequence]"
+   echo "Usage: RunFLXPreSplit.sh filename.sff [primersequence]"
    exit -1
 fi
 
@@ -32,7 +32,7 @@ if [ ! -f ${stub}.sff.txt ]; then
 fi  
 
 echo "Parsing sff.txt file"
-java ampliconflow.sff.FlowsFlex $stub.sff.txt $primer
+java ampliconflow.sff.FlowsFlex $stub.sff.txt $primer -minFlows 360 -cropAtFlow 360
 
 export cropFL=`tail -1 $stub.stat.txt`
 
@@ -45,21 +45,21 @@ FCluster -in ${stub}.fdist -out ${stub}_X > ${stub}.fout
 echo "Running PyronoiseM"
 mpirun $mpiextra -np $nodes PyroNoiseM -din ${stub}.dat -out ${stub}_s60_c01 -lin ${stub}_X.list -s 60.0 -c 0.01 > ${stub}_s60_c01.pout
 
-echo "Cropping barcodes, primes and low quality end (at 400 bp)"
-Truncate.pl 400 < ${stub}_s60_c01_cd.fa > ${stub}_s60_c01_T400.fa
-cropF.py  ${stub}_s60_c01_T400.fa $cropFL > ${stub}_s60_c01_T400_P_BC.fa
+echo "Cropping barcodes, primes and low quality end (at 220 bp)"
+Truncate.pl 220 < ${stub}_s60_c01_cd.fa > ${stub}_s60_c01_T220.fa
+cropF.py  ${stub}_s60_c01_T220.fa $cropFL > ${stub}_s60_c01_T220_P_BC.fa
 
 echo "Running SeqDist"
-mpirun $mpiextra -np $nodes SeqDist -in ${stub}_s60_c01_T400_P_BC.fa > ${stub}_s60_c01_T400_P_BC.seqdist
+mpirun $mpiextra -np $nodes SeqDist -in ${stub}_s60_c01_T220_P_BC.fa > ${stub}_s60_c01_T220_P_BC.seqdist
 
 
 echo "Clustering SeqDist output"
-FCluster -in ${stub}_s60_c01_T400_P_BC.seqdist -out ${stub}_s60_c01_T400_P_BC_S > ${stub}_s60_c01_T400_P_BC.fcout
+FCluster -in ${stub}_s60_c01_T220_P_BC.seqdist -out ${stub}_s60_c01_T220_P_BC_S > ${stub}_s60_c01_T220_P_BC.fcout
 
 echo "Running SeqNoise"
-mpirun $mpiextra -np $nodes SeqNoise -in ${stub}_s60_c01_T400_P_BC.fa -din ${stub}_s60_c01_T400_P_BC.seqdist -lin ${stub}_s60_c01_T400_P_BC_S.list -out ${stub}_s60_c01_T400_P_BC_s30_c08 -s 30.0 -c 0.08 -min ${stub}_s60_c01.mapping > ${stub}_s60_c01_T400_P_BC_s30_c08.snout
+mpirun $mpiextra -np $nodes SeqNoise -in ${stub}_s60_c01_T220_P_BC.fa -din ${stub}_s60_c01_T220_P_BC.seqdist -lin ${stub}_s60_c01_T220_P_BC_S.list -out ${stub}_s60_c01_T220_P_BC_s30_c08 -s 30.0 -c 0.08 -min ${stub}_s60_c01.mapping > ${stub}_s60_c01_T220_P_BC_s30_c08.snout
 
-ln -s ${stub}_s60_c01_T400_P_BC_s30_c08_cd.fa ${stub}_F.fa
+ln -s ${stub}_s60_c01_T220_P_BC_s30_c08_cd.fa ${stub}_F.fa
 
 echo "Running Perseus"
 Perseus -sin ${stub}_F.fa > ${stub}_F.per
