@@ -5,11 +5,11 @@ export otu_dist=0.03
 #Fixes warning message with uDAPL error message appearing:
 export mpiextra="--mca btl tcp,self" 
 
-export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_Titanium.dat
+export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_E123.dat
 export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/Tran.dat 
 
 if test $# -le 0; then
-   echo "Usage: RunTitanium.sh filename.sff [primersequence]"
+   echo "Usage: RunFLX.sh filename.sff [primersequence]"
    exit -1
 fi
 
@@ -56,7 +56,7 @@ if [ -f $bc ]; then
 else
     echo "No barcodes file found. Using entire dataset"
     stub=${sfffile//.sff}
-    FlowsMinMax.pl $primer $stub $< ${sfffile}.txt
+    Flows360.pl $primer $stub $< ${sfffile}.txt
     touch ${stub}.raw
     bcLength=0
 fi
@@ -66,7 +66,7 @@ cropFL=`expr $bcLength + $pLength`
 for file in *.raw; do
     stub=${file//.raw}
     if [ ! -f ${stub}.dat ]; then
-	CleanMinMax.pl $primer $stub < $file
+	Clean360.pl $primer $stub < $file
     fi
 
     echo "Running PyroDist for ${stub}"
@@ -78,20 +78,20 @@ for file in *.raw; do
     echo "Running PyronoiseM for ${stub}"
     mpirun -np $nodes PyroNoiseM -din ${stub}.dat -out ${stub}_s60_c01 -lin ${stub}_X.list -s 60.0 -c 0.01 > ${stub}_s60_c01.pout
 
-    echo "Cropping barcodes, primes and low quality end (at 400 bp)"
-    Truncate.pl 400 < ${stub}_s60_c01_cd.fa > ${stub}_s60_c01_T400.fa
-    cropF.py  ${stub}_s60_c01_T400.fa $cropFL > ${stub}_s60_c01_T400_P_BC.fa
+    echo "Cropping barcodes, primes and low quality end (at 220 bp)"
+    Truncate.pl 220 < ${stub}_s60_c01_cd.fa > ${stub}_s60_c01_T220.fa
+    cropF.py  ${stub}_s60_c01_T220.fa $cropFL > ${stub}_s60_c01_T220_P_BC.fa
 
     echo "Running SeqDist for ${stub}"
-    mpirun $mpiextra -np $nodes SeqDist -in ${stub}_s60_c01_T400_P_BC.fa > ${stub}_s60_c01_T400_P_BC.seqdist
+    mpirun $mpiextra -np $nodes SeqDist -in ${stub}_s60_c01_T220_P_BC.fa > ${stub}_s60_c01_T220_P_BC.seqdist
 
     echo "Clustering SeqDist output for ${stub}"
-    FCluster -in ${stub}_s60_c01_T400_P_BC.seqdist -out ${stub}_s60_c01_T400_P_BC_S > ${stub}_s60_c01_T400_P_BC.fcout
+    FCluster -in ${stub}_s60_c01_T220_P_BC.seqdist -out ${stub}_s60_c01_T220_P_BC_S > ${stub}_s60_c01_T220_P_BC.fcout
 
     echo "Running SeqNoise for ${stub}"
-    mpirun -np $nodes SeqNoise -in ${stub}_s60_c01_T400_P_BC.fa -din ${stub}_s60_c01_T400_P_BC.seqdist -lin ${stub}_s60_c01_T400_P_BC_S.list -out ${stub}_s60_c01_T400_P_BC_s30_c08 -s 30.0 -c 0.08 -min ${stub}_s60_c01.mapping > ${stub}_s60_c01_T400_P_BC_s30_c08.snout
+    mpirun -np $nodes SeqNoise -in ${stub}_s60_c01_T220_P_BC.fa -din ${stub}_s60_c01_T220_P_BC.seqdist -lin ${stub}_s60_c01_T220_P_BC_S.list -out ${stub}_s60_c01_T220_P_BC_s30_c08 -s 30.0 -c 0.08 -min ${stub}_s60_c01.mapping > ${stub}_s60_c01_T220_P_BC_s30_c08.snout
 
-    ln -s ${stub}_s60_c01_T400_P_BC_s30_c08_cd.fa ${stub}_F.fa
+    ln -s ${stub}_s60_c01_T220_P_BC_s30_c08_cd.fa ${stub}_F.fa
 
     echo "Running Perseus for ${stub}"
     Perseus -sin ${stub}_F.fa > ${stub}_F.per
