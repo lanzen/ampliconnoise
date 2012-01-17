@@ -107,5 +107,10 @@ for file in *.raw; do
 
     java amliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -repseq ${stub}_F_Good.fa > ${stub}_OTUs_${otu_dist}.fasta
 
+    java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -weigh -simpson > ${stub}_OTUs_${otu_dist}_simpson.txt
+
+    java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -weigh -shannon > ${stub}_OTUs_${otu_dist}_shannon.txt
+
+
 done
 

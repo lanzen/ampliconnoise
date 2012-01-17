@@ -75,7 +75,9 @@ echo "Writing otu representatives"
 
 java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -repseq ${stub}_F_Good.fa > ${stub}_OTUs_${otu_dist}.fasta
 
-#RankAbundance.pl $otu_dist < ${stub}_F_Good.list > ${stub}_${otu_dist}.adist
-#Chao.pl < ${stub}_${otu_dist}.adist > ${stub}_${otu_dist}.chao
-#ERarefaction -in ${stub}_${otu_dist}.adist -out ${stub}_${otu_dist} > ${stub}_${otu_dist}.rare
+java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -s -weigh -simpson > ${stub}_OTUs_${otu_dist}_simpson.txt
+
+java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -s -weigh -shannon > ${stub}_OTUs_${otu_dist}_shannon.txt
+
+java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -s -weigh -totalreads > ${stub}_OTUs_${otu_dist}_total.txt
 

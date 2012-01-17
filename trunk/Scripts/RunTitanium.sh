@@ -63,6 +63,8 @@ fi
 
 cropFL=`expr $bcLength + $pLength`
 
+echo -e 'Sample\tTotal reads\tPre-filtered reads\tUnique sequences\tChimeric sequences\tRemaining unique sequences\tRemaining reads\tOTUs\tShannon index\tSimpsons index (1-D)' > AN_stats.txt
+
 for file in *.raw; do
     stub=${file//.raw}
     if [ ! -f ${stub}.dat ]; then
@@ -103,9 +105,25 @@ for file in *.raw; do
 
     FCluster -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
 
-    echo "Writing otu representatives"
+    echo "Writing otu representatives and statistics"
 
     java amliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -repseq ${stub}_F_Good.fa > ${stub}_OTUs_${otu_dist}.fasta
+
+    java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -weigh -s -simpson > ${stub}_OTUs_${otu_dist}_simpson.txt
+
+    java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -weigh -s -shannon > ${stub}_OTUs_${otu_dist}_shannon.txt
+
+    tr=`grep -ce ">" ${stub}.raw.fasta`
+    pf=`grep -ce ">" ${stub}.filtered.fasta`
+    us=`grep -ce ">" ${stub}_F.fa`
+    cs=`grep -ce ">" ${stub}_F_Chi.fa`
+    rus=`grep -ce ">" ${stub}_F_Good.fa`
+    rr=`java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -s -weigh -totalreads > ${stub}_OTUs_${otu_dist}_total.txt`
+    otus=`grep -ce ">" ${stub}_OTUs_${otu_dist}.fasta`
+    shannon=`cat ${stub}_OTUs_${otu_dist}_shannon.txt`
+    simpson=`cat ${stub}_OTUs_${otu_dist}_simpson.txt`
+
+    echo -e "${stub}\t${tr}\t${pf}\t${us}\t${cs}\t${rus}\t${rr}\t${otus}\t${shannon}\t${simpson}" >> AN_stats.txt
 
 done
 
