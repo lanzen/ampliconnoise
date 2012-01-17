@@ -109,19 +109,15 @@ for file in *.raw; do
 
     java amliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -repseq ${stub}_F_Good.fa > ${stub}_OTUs_${otu_dist}.fasta
 
-    java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -weigh -s -simpson > ${stub}_OTUs_${otu_dist}_simpson.txt
-
-    java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -weigh -s -shannon > ${stub}_OTUs_${otu_dist}_shannon.txt
-
     tr=`grep -ce ">" ${stub}.raw.fasta`
     pf=`grep -ce ">" ${stub}.filtered.fasta`
     us=`grep -ce ">" ${stub}_F.fa`
     cs=`grep -ce ">" ${stub}_F_Chi.fa`
     rus=`grep -ce ">" ${stub}_F_Good.fa`
-    rr=`java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -s -weigh -totalreads > ${stub}_OTUs_${otu_dist}_total.txt`
+    rr=`java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -s -weigh -totalreads`
     otus=`grep -ce ">" ${stub}_OTUs_${otu_dist}.fasta`
-    shannon=`cat ${stub}_OTUs_${otu_dist}_shannon.txt`
-    simpson=`cat ${stub}_OTUs_${otu_dist}_simpson.txt`
+    shannon=`java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -weigh -s -shannon`
+    simpson=`java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -weigh -s -simpson`
 
     echo -e "${stub}\t${tr}\t${pf}\t${us}\t${cs}\t${rus}\t${rr}\t${otus}\t${shannon}\t${simpson}" >> AN_stats.txt
 
