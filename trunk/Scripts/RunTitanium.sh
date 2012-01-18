@@ -29,6 +29,7 @@ fi
 echo "Primer sequence: $primer"
 
 stub=${1//.sff}
+stub=${stub//.txt}
 
 # first generate sff text file if necessary                                                                   
 if [ ! -f ${stub}.sff.txt ]; then
@@ -55,15 +56,16 @@ if [ -f $bc ]; then
     bcLength=${#firstKey}
 else
     echo "No barcodes file found. Using entire dataset"
-    stub=${sfffile//.sff}
-    FlowsMinMax.pl $primer $stub $< ${sfffile}.txt
+    FlowsMinMax.pl $primer $stub< ${sfffile}.txt
     touch ${stub}.raw
     bcLength=0
 fi
 
 cropFL=`expr $bcLength + $pLength`
 
-echo -e 'Sample\tTotal reads\tPre-filtered reads\tUnique sequences\tChimeric sequences\tRemaining unique sequences\tRemaining reads\tOTUs\tShannon index\tSimpsons index (1-D)' > AN_stats.txt
+if [ ! -f AN_stats.txt ]; then
+    echo -e 'Sample\tTotal reads\tPre-filtered reads\tUnique sequences\tChimeric sequences\tRemaining unique sequences\tRemaining reads\tOTUs\tShannon index\tSimpsons index (1-D)' > AN_stats.txt
+fi
 
 for file in *.raw; do
     stub=${file//.raw}
@@ -109,8 +111,9 @@ for file in *.raw; do
 
     java amliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -repseq ${stub}_F_Good.fa > ${stub}_OTUs_${otu_dist}.fasta
 
-    tr=`grep -ce ">" ${stub}.raw.fasta`
-    pf=`grep -ce ">" ${stub}.filtered.fasta`
+    tr=`grep -ce ">" ${stub}.sff.txt`
+    pf=`head -1 ${stub}.dat`
+    pf=${pf//" "*}
     us=`grep -ce ">" ${stub}_F.fa`
     cs=`grep -ce ">" ${stub}_F_Chi.fa`
     rus=`grep -ce ">" ${stub}_F_Good.fa`

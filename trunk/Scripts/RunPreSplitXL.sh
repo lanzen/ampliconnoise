@@ -113,6 +113,18 @@ echo "Writing otu representatives, calculating Rarefaction and Chao2 estimates"
 
 java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -repseq ${stub}_F_Good.fa > ${stub}_OTUs_${otu_dist}.fasta
 
-RankAbundance.pl $otu_dist < ${stub}_F_Good.list > ${stub}_${otu_dist}.adist
-Chao.pl < ${stub}_${otu_dist}.adist > ${stub}_${otu_dist}.chao
-#ERarefaction -in ${stub}_${otu_dist}.adist -out ${stub}_${otu_dist} > ${stub}_${otu_dist}.rare
+if [ ! -f AN_stats.txt ]; then
+    echo -e 'Sample\tTotal reads\tPre-filtered reads\tUnique sequences\tChimeric sequences\tRemaining unique sequences\tRemaining reads\tOTUs\tShannon index\tSimpsons index (1-D)' > AN_stats.txt
+fi
+
+tr=`grep -ce ">" ${stub}.raw.fasta`
+pf=`grep -ce ">" ${stub}.filtered.fasta`
+us=`grep -ce ">" ${stub}_F.fa`
+cs=`grep -ce ">" ${stub}_F_Chi.fa`
+rus=`grep -ce ">" ${stub}_F_Good.fa`
+rr=`java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -s -weigh -totalreads`
+otus=`grep -ce ">" ${stub}_OTUs_${otu_dist}.fasta`
+shannon=`java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -weigh -s -shannon`
+simpson=`java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -weigh -s -simpson`
+
+echo -e "${stub}\t${tr}\t${pf}\t${us}\t${cs}\t${rus}\t${rr}\t${otus}\t${shannon}\t${simpson}" >> AN_stats.txt
