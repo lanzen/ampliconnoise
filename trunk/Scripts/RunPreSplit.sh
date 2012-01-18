@@ -1,4 +1,3 @@
-export primer=primer.fasta
 export nodes=4
 export otu_dist=0.03
 
@@ -42,6 +41,9 @@ mpirun $mpiextra -np $nodes PyroDist -in ${stub}.dat -out ${stub} > ${stub}.fout
 
 echo "Clustering PyroDist output"
 FCluster -in ${stub}.fdist -out ${stub}_X > ${stub}.fout
+
+rm ${stub}.fdist
+rm ${stub}_X.otu ${stub}_X.tree
 
 echo "Running PyronoiseM"
 mpirun $mpiextra -np $nodes PyroNoiseM -din ${stub}.dat -out ${stub}_s60_c01 -lin ${stub}_X.list -s 60.0 -c 0.01 > ${stub}_s60_c01.pout

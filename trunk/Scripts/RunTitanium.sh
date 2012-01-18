@@ -37,26 +37,19 @@ if [ ! -f ${stub}.sff.txt ]; then
     sffinfo $1 >${stub}.sff.txt
 fi
 
-sfffile=$1
-
-# first generate sff text file if necessary                                                                   
-if [ ! -f ${sfffile}.txt ]; then
-    echo "Generating .sff.txt file"
-    sffinfo $1> ${sfffile}.txt
-fi  
 
 pLength=`expr ${#primer}`
 
 echo "Parsing sff.txt file"
 if [ -f $bc ]; then
     echo "Using barcodes file $bc for splitting"
-    SplitKeys.pl $primer $bc < ${sfffile}.txt > matching.fasta 2>nonmatching.fasta
+    SplitKeys.pl $primer $bc < ${stub}.sff.txt > matching.fasta 2>nonmatching.fasta
     firstKey=`head -1 $bc`
     firstKey=${firstKey//*,}
     bcLength=${#firstKey}
 else
     echo "No barcodes file found. Using entire dataset"
-    FlowsMinMax.pl $primer $stub< ${sfffile}.txt
+    FlowsMinMax.pl $primer $stub< ${stub}.sff.txt
     touch ${stub}.raw
     bcLength=0
 fi
@@ -74,13 +67,16 @@ for file in *.raw; do
     fi
 
     echo "Running PyroDist for ${stub}"
-    mpirun -np $nodes PyroDist -in ${stub}.dat -out ${stub} > ${stub}.fout
+    mpirun $mpiextra -np $nodes PyroDist -in ${stub}.dat -out ${stub} > ${stub}.fout
 
     echo "Clustering PyroDist output for ${stub}"
     FCluster -in ${stub}.fdist -out ${stub}_X > ${stub}.fout
 
+    rm ${stub}.fdist
+    rm ${stub}_X.otu ${stub}_X.tree
+
     echo "Running PyronoiseM for ${stub}"
-    mpirun -np $nodes PyroNoiseM -din ${stub}.dat -out ${stub}_s60_c01 -lin ${stub}_X.list -s 60.0 -c 0.01 > ${stub}_s60_c01.pout
+    mpirun $mpiextra -np $nodes PyroNoiseM -din ${stub}.dat -out ${stub}_s60_c01 -lin ${stub}_X.list -s 60.0 -c 0.01 > ${stub}_s60_c01.pout
 
     echo "Cropping barcodes, primes and low quality end (at 400 bp)"
     Truncate.pl 400 < ${stub}_s60_c01_cd.fa > ${stub}_s60_c01_T400.fa
@@ -93,7 +89,7 @@ for file in *.raw; do
     FCluster -in ${stub}_s60_c01_T400_P_BC.seqdist -out ${stub}_s60_c01_T400_P_BC_S > ${stub}_s60_c01_T400_P_BC.fcout
 
     echo "Running SeqNoise for ${stub}"
-    mpirun -np $nodes SeqNoise -in ${stub}_s60_c01_T400_P_BC.fa -din ${stub}_s60_c01_T400_P_BC.seqdist -lin ${stub}_s60_c01_T400_P_BC_S.list -out ${stub}_s60_c01_T400_P_BC_s30_c08 -s 30.0 -c 0.08 -min ${stub}_s60_c01.mapping > ${stub}_s60_c01_T400_P_BC_s30_c08.snout
+    mpirun $mpiextra -np $nodes SeqNoise -in ${stub}_s60_c01_T400_P_BC.fa -din ${stub}_s60_c01_T400_P_BC.seqdist -lin ${stub}_s60_c01_T400_P_BC_S.list -out ${stub}_s60_c01_T400_P_BC_s30_c08 -s 30.0 -c 0.08 -min ${stub}_s60_c01.mapping > ${stub}_s60_c01_T400_P_BC_s30_c08.snout
 
     ln -s ${stub}_s60_c01_T400_P_BC_s30_c08_cd.fa ${stub}_F.fa
 

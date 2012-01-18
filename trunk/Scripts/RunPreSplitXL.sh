@@ -1,4 +1,3 @@
-export primer=primer.fasta
 export nodes=8
 export otu_dist=0.03
 
