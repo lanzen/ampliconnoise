@@ -13,6 +13,8 @@ if test $# -le 0; then
    exit -1
 fi
 
+stub=${1//.dat}
+
 if [ -n "$2" ]; then
     cropF=$2
 else
