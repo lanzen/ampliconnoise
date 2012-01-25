@@ -103,6 +103,7 @@ echo "Running Perseus"
 Perseus -sin ${stub}_F.fa > ${stub}_F.per
 Class.pl ${stub}_F.per -7.5 0.5 > ${stub}_F.class
 FilterGoodClass.pl ${stub}_F.fa ${stub}_F.class 0.5 1>${stub}_F_Chi.fa 2>${stub}_F_Good.fa
+rm Temp.*
 
 echo "Clustering OTUs"
 mpirun $mpiextra -np $nodes NDist -i -in ${stub}_F_Good.fa > ${stub}_F_Good.ndist

@@ -1,40 +1,23 @@
+export bc=keys.csv
 export nodes=4
 export otu_dist=0.03
-export primer=primer.fasta
 
 #Fixes warning message with uDAPL error message appearing:
-export mpiextra="--mca btl tcp,self"
+export mpiextra="--mca btl tcp,self" 
 
-
-export CLASSPATH=$AMPLICON_NOISE_HOME/lib/ampliconflow.jar:$AMPLICON_NOISE_HOME/lib/core-1.8.1.jar
-export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_Titanium.dat
+export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_E123.dat
 export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/Tran.dat 
 
 if test $# -le 0; then
-   echo "Usage: RunPreSplit.sh filename.sff [primersequence]"
+   echo "Usage: RunFLX.sh filename.dat [length of primer+barcode]"
    exit -1
 fi
 
 if [ -n "$2" ]; then
-	primer=$2
-elif [ ! -f primer.fasta ]; then
-	echo "Can't find file primer.fasta containing the primer sequence!"
-	exit
+    cropF=$2
+else
+    echo "Using primer + barcode length 0"
 fi
-
-stub=${1//.sff}
-stub=${stub//.txt}
-
-# first generate sff text file if necessary                                                                   
-if [ ! -f ${stub}.sff.txt ]; then
-    echo "Generating .sff.txt file"
-    sffinfo $1 >${stub}.sff.txt
-fi  
-
-echo "Parsing sff.txt file"
-java ampliconflow.sff.FlowsFlex $stub.sff.txt $primer
-
-export cropFL=`tail -1 $stub.stat.txt`
 
 echo "Running PyroDist"
 mpirun $mpiextra -np $nodes PyroDist -in ${stub}.dat -out ${stub} > ${stub}.fout
