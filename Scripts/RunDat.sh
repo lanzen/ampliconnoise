@@ -16,8 +16,9 @@ fi
 stub=${1//.dat}
 
 if [ -n "$2" ]; then
-    cropF=$2
+    export cropFL=$2
 else
+    export cropFL=0
     echo "Using primer + barcode length 0"
 fi
 
