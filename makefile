@@ -1,6 +1,7 @@
 all:
 	(cd FCluster && make)
 	(cd FClusterM && make)
+	(cd FClusterN && make)
 	(cd FastaUnique && make)
 	(cd NDist && make)
 	(cd PyroDist && make)
@@ -16,6 +17,7 @@ all:
 clean:
 	(cd FCluster && make clean)
 	(cd FClusterM && make clean)
+	(cd FClusterN && make clean)
 	(cd FastaUnique && make clean)
 	(cd NDist && make clean)
 	(cd PyroDist && make clean)
@@ -32,6 +34,7 @@ clean:
 install:
 	cp FCluster/FCluster bin
 	cp FClusterM/FClusterM bin
+	cp FClusterN/FClusterN bin
 	cp FastaUnique/FastaUnique bin
 	cp NDist/NDist bin
 	cp PyroDist/PyroDist bin
