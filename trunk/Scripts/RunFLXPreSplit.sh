@@ -5,7 +5,6 @@ export primer=primer.fasta
 #Fixes warning message with uDAPL error message appearing:
 export mpiextra="--mca btl tcp,self"
 
-
 export CLASSPATH=$AMPLICON_NOISE_HOME/lib/ampliconflow.jar:$AMPLICON_NOISE_HOME/lib/core-1.8.1.jar
 export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_E123.dat
 export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/Tran.dat 
@@ -28,24 +27,50 @@ stub=${1//.sff}
 if [ ! -f ${stub}.sff.txt ]; then
     echo "Generating .sff.txt file"
     sffinfo $1 >${stub}.sff.txt
+    xs=$?
+    if [[ $xs != 0 ]]; then
+	echo "SFF parsing exited with status $xs"
+	exit $xs
+  fi
 fi  
 
 echo "Parsing sff.txt file"
 java ampliconflow.sff.FlowsFlex $stub.sff.txt $primer -minFlows 360 -cropAtFlow 360
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "java exited with status $xs"
+    exit $xs
+fi
 
 export cropFL=`tail -1 $stub.stat.txt`
 
 echo "Running PyroDist"
 mpirun $mpiextra -np $nodes PyroDist -in ${stub}.dat -out ${stub} > ${stub}.fout
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "PyroDist exited with status $xs"
+    exit $xs
+fi
 
 echo "Clustering PyroDist output"
-FCluster -in ${stub}.fdist -out ${stub}_X > ${stub}.fout
+mpirun $mpiextra -np $nodes FClusterN -in ${stub}.fdist -out ${stub}_X > ${stub}.fout
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "FClusterN exited with status $xs"
+    exit $xs
+fi
 
 rm ${stub}.fdist
 rm ${stub}_X.otu ${stub}_X.tree
 
 echo "Running PyronoiseM"
 mpirun $mpiextra -np $nodes PyroNoiseM -din ${stub}.dat -out ${stub}_s60_c01 -lin ${stub}_X.list -s 60.0 -c 0.01 > ${stub}_s60_c01.pout
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "PyroNoiseM parsing exited with status $xs"
+    exit $xs
+fi
+
 
 echo "Cropping barcodes, primes and low quality end (at 220 bp)"
 Truncate.pl 220 < ${stub}_s60_c01_cd.fa > ${stub}_s60_c01_T220.fa
@@ -53,26 +78,56 @@ cropF.py  ${stub}_s60_c01_T220.fa $cropFL > ${stub}_s60_c01_T220_P_BC.fa
 
 echo "Running SeqDist"
 mpirun $mpiextra -np $nodes SeqDist -in ${stub}_s60_c01_T220_P_BC.fa > ${stub}_s60_c01_T220_P_BC.seqdist
-
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "SeqDist exited with status $xs"
+    exit $xs
+fi
 
 echo "Clustering SeqDist output"
-FCluster -in ${stub}_s60_c01_T220_P_BC.seqdist -out ${stub}_s60_c01_T220_P_BC_S > ${stub}_s60_c01_T220_P_BC.fcout
+mpirun  $mpiextra -np $nodes FClusterN -in ${stub}_s60_c01_T220_P_BC.seqdist -out ${stub}_s60_c01_T220_P_BC_S > ${stub}_s60_c01_T220_P_BC.fcout
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "FClusterN exited with status $xs"
+    exit $xs
+fi
 
 echo "Running SeqNoise"
 mpirun $mpiextra -np $nodes SeqNoise -in ${stub}_s60_c01_T220_P_BC.fa -din ${stub}_s60_c01_T220_P_BC.seqdist -lin ${stub}_s60_c01_T220_P_BC_S.list -out ${stub}_s60_c01_T220_P_BC_s30_c08 -s 30.0 -c 0.08 -min ${stub}_s60_c01.mapping > ${stub}_s60_c01_T220_P_BC_s30_c08.snout
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "SeqNoise exited with status $xs"
+    exit $xs
+fi
 
-ln -s ${stub}_s60_c01_T220_P_BC_s30_c08_cd.fa ${stub}_F.fa
+ln -sf ${stub}_s60_c01_T220_P_BC_s30_c08_cd.fa ${stub}_F.fa
 
 echo "Running Perseus"
 Perseus -sin ${stub}_F.fa > ${stub}_F.per
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "Persus exited with status $xs"
+    exit $xs
+fi
+
 Class.pl ${stub}_F.per -7.5 0.5 > ${stub}_F.class
 FilterGoodClass.pl ${stub}_F.fa ${stub}_F.class 0.5 1>${stub}_F_Chi.fa 2>${stub}_F_Good.fa
 rm Temp.*
 
 echo "Clustering OTUs"
 mpirun $mpiextra -np $nodes NDist -i -in ${stub}_F_Good.fa > ${stub}_F_Good.ndist
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "NDist exited with status $xs"
+    exit $xs
+fi
 
-FCluster -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
+mpirun $mpiextra -np $nodes  FClusterN -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "FClusterN exited with status $xs"
+    exit $xs
+fi
 
 echo "Writing otu representatives"
 

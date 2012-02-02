@@ -42,21 +42,41 @@ FastaUnique -in ${stub}.filtered.fasta > ${stub}_U.fa
 #sequence distances - large datasets only
 echo "Calculating sequence distances"
 mpirun $mpiextra -np $nodes NDist -i -in ${stub}_U.fa > ${stub}_U_I.ndist
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "NDist exited with status $xs"
+    exit $xs
+fi
 
 echo "Cluster sequences..";
 #cluster sequences using average linkage and sequence weights - large datasets only
-FCluster -a -w -in ${stub}_U_I.ndist -out ${stub}_U_I > ${stub}_U_I.fcout
+mpirun $mpiextra -np $nodes FClusterN -a -w -in ${stub}_U_I.ndist -out ${stub}_U_I > ${stub}_U_I.fcout
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "FClusterN exited with status $xs"
+    exit $xs
+fi
 rm ${stub}_U_I.ndist
 
 #Split into clusters - large datasets only
 SplitClusterEven -din ${stub}.dat -min ${stub}.filtered.map -tin ${stub}_U_I.tree -s 5000 -m 1000 > ${stub}_split.stats
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "SplitClusterEven exited with status $xs"
+    exit $xs
+fi
 
 #Run PyroDist and PyroNoise on each cluster separetely
 echo "Calculating .fdist files using PyroDist"
 for c in C*
 do
         if [ -d $c ] ; then
-                mpirun $mpiextra -np $nodes PyroDist -in ${c}/${c}.dat -out ${c}/${c} > ${c}/${c}.fout
+            mpirun $mpiextra -np $nodes PyroDist -in ${c}/${c}.dat -out ${c}/${c} > ${c}/${c}.fout
+	    xs=$?
+	    if [[ $xs != 0 ]]; then
+		echo "PyroDist exited with status $xs"
+		exit $xs
+	    fi
         fi
 done
 
@@ -65,8 +85,13 @@ echo "Clustering .fdist files using FCluster"
 for c in C*
 do
         if [ -d $c ] ; then
-                FCluster -in ${c}/${c}.fdist -out ${c}/${c}_X > ${c}/${c}.fout
-		rm ${c}/${c}.fdist
+	    mpirun $mpiextra -np $nodes FClusterN -in ${c}/${c}.fdist -out ${c}/${c}_X > ${c}/${c}.fout
+	    xs=$?
+	    if [[ $xs != 0 ]]; then
+		echo "FClusterN exited with status $xs"
+		exit $xs
+	    fi
+	    rm ${c}/${c}.fdist
         fi
 done
 
@@ -74,7 +99,12 @@ echo "Running PyroNoiseM Clustering"
 for dir in C*
 do
         if [ -d $dir ] ; then
-                mpirun $mpiextra -np $nodes PyroNoiseM -din ${dir}/${dir}.dat -out ${dir}/${dir}_s60_c01 -lin ${dir}/${dir}_X.list -s 60.0 -c 0.01 > ${dir}/${dir}_s60_c01.pout
+            mpirun $mpiextra -np $nodes PyroNoiseM -din ${dir}/${dir}.dat -out ${dir}/${dir}_s60_c01 -lin ${dir}/${dir}_X.list -s 60.0 -c 0.01 > ${dir}/${dir}_s60_c01.pout
+	    xs=$?
+	    if [[ $xs != 0 ]]; then
+		echo "PyroNoiseM exited with status $xs"
+		exit $xs
+	    fi
         fi
 done
 
@@ -87,28 +117,58 @@ cropF.py  ${stub}_s60_c01_T400.fa $cropFL > ${stub}_s60_c01_T400_P_BC.fa
 
 echo "Running SeqDist"
 mpirun $mpiextra -np $nodes SeqDist -in ${stub}_s60_c01_T400_P_BC.fa > ${stub}_s60_c01_T400_P_BC.seqdist
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "SeqDist exited with status $xs"
+    exit $xs
+fi
 
 
 echo "Clustering SeqDist output"
-FCluster -in ${stub}_s60_c01_T400_P_BC.seqdist -out ${stub}_s60_c01_T400_P_BC_S > ${stub}_s60_c01_T400_P_BC.fcout
+mpirun $mpiextra -np $nodes FClusterN -in ${stub}_s60_c01_T400_P_BC.seqdist -out ${stub}_s60_c01_T400_P_BC_S > ${stub}_s60_c01_T400_P_BC.fcout
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "FClusterN exited with status $xs"
+    exit $xs
+fi
 
 echo "Running SeqNoise"
 mpirun $mpiextra -np $nodes SeqNoise -in ${stub}_s60_c01_T400_P_BC.fa -din ${stub}_s60_c01_T400_P_BC.seqdist -lin ${stub}_s60_c01_T400_P_BC_S.list -out ${stub}_s60_c01_T400_P_BC_s30_c08 -s 30.0 -c 0.08 -min ${stub}_s60_c01.mapping > ${stub}_s60_c01_T400_P_BC_s30_c08.snout
-
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "SeqNoise exited with status $xs"
+    exit $xs
+fi
 rm *.seqdist
 
 ln -s ${stub}_s60_c01_T400_P_BC_s30_c08_cd.fa ${stub}_F.fa
 
 echo "Running Perseus"
 Perseus -sin ${stub}_F.fa > ${stub}_F.per
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "Persus exited with status $xs"
+    exit $xs
+fi
+
 Class.pl ${stub}_F.per -7.5 0.5 > ${stub}_F.class
 FilterGoodClass.pl ${stub}_F.fa ${stub}_F.class 0.5 1>${stub}_F_Chi.fa 2>${stub}_F_Good.fa
 rm Temp.*
 
 echo "Clustering OTUs"
 mpirun $mpiextra -np $nodes NDist -i -in ${stub}_F_Good.fa > ${stub}_F_Good.ndist
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "NDist exited with status $xs"
+    exit $xs
+fi
 
-FCluster -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
+mpirun $mpiextra -np $nodes FClusterN  -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
+xs=$?
+if [[ $xs != 0 ]]; then
+    echo "FClusterN exited with status $xs"
+    exit $xs
+fi
 
 echo "Writing otu representatives, calculating Rarefaction and Chao2 estimates"
 
