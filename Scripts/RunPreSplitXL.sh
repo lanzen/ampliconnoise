@@ -50,7 +50,7 @@ fi
 
 echo "Cluster sequences..";
 #cluster sequences using average linkage and sequence weights - large datasets only
-mpirun $mpiextra -np $nodes FClusterN -a -w -in ${stub}_U_I.ndist -out ${stub}_U_I > ${stub}_U_I.fcout
+FClusterN -a -w -in ${stub}_U_I.ndist -out ${stub}_U_I > ${stub}_U_I.fcout
 xs=$?
 if [[ $xs != 0 ]]; then
     echo "FClusterN exited with status $xs"
@@ -85,7 +85,7 @@ echo "Clustering .fdist files using FCluster"
 for c in C*
 do
         if [ -d $c ] ; then
-	    mpirun $mpiextra -np $nodes FClusterN -in ${c}/${c}.fdist -out ${c}/${c}_X > ${c}/${c}.fout
+	    FClusterN -in ${c}/${c}.fdist -out ${c}/${c}_X > ${c}/${c}.fout
 	    xs=$?
 	    if [[ $xs != 0 ]]; then
 		echo "FClusterN exited with status $xs"
@@ -125,7 +125,7 @@ fi
 
 
 echo "Clustering SeqDist output"
-mpirun $mpiextra -np $nodes FClusterN -in ${stub}_s60_c01_T400_P_BC.seqdist -out ${stub}_s60_c01_T400_P_BC_S > ${stub}_s60_c01_T400_P_BC.fcout
+FClusterN -in ${stub}_s60_c01_T400_P_BC.seqdist -out ${stub}_s60_c01_T400_P_BC_S > ${stub}_s60_c01_T400_P_BC.fcout
 xs=$?
 if [[ $xs != 0 ]]; then
     echo "FClusterN exited with status $xs"
@@ -163,7 +163,7 @@ if [[ $xs != 0 ]]; then
     exit $xs
 fi
 
-mpirun $mpiextra -np $nodes FClusterN  -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
+FClusterN  -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
 xs=$?
 if [[ $xs != 0 ]]; then
     echo "FClusterN exited with status $xs"

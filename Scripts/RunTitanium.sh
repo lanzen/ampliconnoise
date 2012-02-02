@@ -76,7 +76,7 @@ for file in *.raw; do
     fi
 
     echo "Clustering PyroDist output for ${stub}"
-    mpirun $mpiextra -np $nodes FClusterN -out ${stub}_X > ${stub}.fout
+    FClusterN -out ${stub}_X > ${stub}.fout
     xs=$?
     if [[ $xs != 0 ]]; then
 	echo "FClusterN exited with status $xs"
@@ -107,7 +107,7 @@ for file in *.raw; do
     fi
 
     echo "Clustering SeqDist output for ${stub}"
-    mpirun $mpiextra -np $nodes FClusterN -in ${stub}_s60_c01_T400_P_BC.seqdist -out ${stub}_s60_c01_T400_P_BC_S > ${stub}_s60_c01_T400_P_BC.fcout
+    FClusterN -in ${stub}_s60_c01_T400_P_BC.seqdist -out ${stub}_s60_c01_T400_P_BC_S > ${stub}_s60_c01_T400_P_BC.fcout
     xs=$?
     if [[ $xs != 0 ]]; then
 	echo "FClusterN exited with status $xs"
@@ -143,7 +143,7 @@ for file in *.raw; do
 	exit $xs
     fi
 
-    mpirun $mpiextra -np $nodes FClusterN -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
+    FClusterN -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
     xs=$?
     if [[ $xs != 0 ]]; then
 	echo "FClusterN exited with status $xs"
