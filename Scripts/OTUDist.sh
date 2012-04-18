@@ -2,7 +2,7 @@
 stub=${1//.fasta}
 stub=${stub//.fa}
 
-export CLASSPATH=$AMPLICON_NOISE_HOME/lib/ampliconflow.jar
+export CLASSPATH=$AMPLICON_NOISE_HOME/lib/ampliconflow.jar:$AMPLICON_NOISE_HOME/lib/core-1.8.1.jar
 
 nodes=4
 export mpiextra="--mca btl tcp,self"
