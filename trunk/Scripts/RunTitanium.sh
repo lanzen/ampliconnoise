@@ -76,7 +76,7 @@ for file in *.raw; do
     fi
 
     echo "Clustering PyroDist output for ${stub}"
-    FClusterN -out ${stub}_X > ${stub}.fout
+    FClusterN -in ${stub}.fdist -out ${stub}_X > ${stub}.fout
     xs=$?
     if [[ $xs != 0 ]]; then
 	echo "FClusterN exited with status $xs"
