@@ -53,10 +53,10 @@ if [[ $xs != 0 ]]; then
 fi
 
 echo "Clustering PyroDist output"
-FClusterN -in ${stub}.fdist -out ${stub}_X > ${stub}.fout
+FCluster -in ${stub}.fdist -out ${stub}_X > ${stub}.fout
 xs=$?
 if [[ $xs != 0 ]]; then
-    echo "FClusterN exited with status $xs"
+    echo "FCluster exited with status $xs"
     exit $xs
 fi
 
@@ -85,10 +85,10 @@ if [[ $xs != 0 ]]; then
 fi
 
 echo "Clustering SeqDist output"
-FClusterN -in ${stub}_s60_c01_T220_P_BC.seqdist -out ${stub}_s60_c01_T220_P_BC_S > ${stub}_s60_c01_T220_P_BC.fcout
+FCluster -in ${stub}_s60_c01_T220_P_BC.seqdist -out ${stub}_s60_c01_T220_P_BC_S > ${stub}_s60_c01_T220_P_BC.fcout
 xs=$?
 if [[ $xs != 0 ]]; then
-    echo "FClusterN exited with status $xs"
+    echo "FCluster exited with status $xs"
     exit $xs
 fi
 
@@ -122,10 +122,10 @@ if [[ $xs != 0 ]]; then
     exit $xs
 fi
 
-FClusterN -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
+FCluster -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
 xs=$?
 if [[ $xs != 0 ]]; then
-    echo "FClusterN exited with status $xs"
+    echo "FCluster exited with status $xs"
     exit $xs
 fi
 
