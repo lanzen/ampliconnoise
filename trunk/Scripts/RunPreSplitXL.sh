@@ -50,10 +50,10 @@ fi
 
 echo "Cluster sequences..";
 #cluster sequences using average linkage and sequence weights - large datasets only
-FClusterN -a -w -in ${stub}_U_I.ndist -out ${stub}_U_I > ${stub}_U_I.fcout
+FCluster -a -w -in ${stub}_U_I.ndist -out ${stub}_U_I > ${stub}_U_I.fcout
 xs=$?
 if [[ $xs != 0 ]]; then
-    echo "FClusterN exited with status $xs"
+    echo "FCluster exited with status $xs"
     exit $xs
 fi
 rm ${stub}_U_I.ndist
@@ -85,10 +85,10 @@ echo "Clustering .fdist files using FCluster"
 for c in C*
 do
         if [ -d $c ] ; then
-	    FClusterN -in ${c}/${c}.fdist -out ${c}/${c}_X > ${c}/${c}.fout
+	    FCluster -in ${c}/${c}.fdist -out ${c}/${c}_X > ${c}/${c}.fout
 	    xs=$?
 	    if [[ $xs != 0 ]]; then
-		echo "FClusterN exited with status $xs"
+		echo "FCluster exited with status $xs"
 		exit $xs
 	    fi
 	    rm ${c}/${c}.fdist
@@ -125,10 +125,10 @@ fi
 
 
 echo "Clustering SeqDist output"
-FClusterN -in ${stub}_s60_c01_T400_P_BC.seqdist -out ${stub}_s60_c01_T400_P_BC_S > ${stub}_s60_c01_T400_P_BC.fcout
+FCluster -in ${stub}_s60_c01_T400_P_BC.seqdist -out ${stub}_s60_c01_T400_P_BC_S > ${stub}_s60_c01_T400_P_BC.fcout
 xs=$?
 if [[ $xs != 0 ]]; then
-    echo "FClusterN exited with status $xs"
+    echo "FCluster exited with status $xs"
     exit $xs
 fi
 
@@ -163,10 +163,10 @@ if [[ $xs != 0 ]]; then
     exit $xs
 fi
 
-FClusterN  -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
+FCluster  -i -in ${stub}_F_Good.ndist -out ${stub}_F_Good > ${stub}_F_Good.fdist
 xs=$?
 if [[ $xs != 0 ]]; then
-    echo "FClusterN exited with status $xs"
+    echo "FCluster exited with status $xs"
     exit $xs
 fi
 
