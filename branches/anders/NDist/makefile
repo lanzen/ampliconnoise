@@ -14,3 +14,5 @@ $(OBJS) : NDist.h
 
 clean:
 	rm -rf *.o NDist
+
+	
