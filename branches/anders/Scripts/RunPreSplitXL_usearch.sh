@@ -6,13 +6,18 @@ export primer=primer.fasta
 min_size=50
 max_size=2000
 
-
 #Fixes warning message with uDAPL error message appearing:
 export mpiextra="--mca btl tcp,self"
 
 export CLASSPATH=$AMPLICON_NOISE_HOME/lib/ampliconflow.jar:$AMPLICON_NOISE_HOME/lib/core-1.8.1.jar
 export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_Titanium.dat
 export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/Tran.dat 
+
+spyro=60
+#PyroNoise cluster size
+
+cpyro=0.01
+#PyroNoise cluster init
 
 
 if test $# -le 0; then
@@ -46,30 +51,25 @@ FastaUnique -in ${stub}.filtered.fasta > ${stub}_U.fa
 
 #sequence distances - large datasets only
 echo "Calculating sequence distances"
-mpirun $mpiextra -np $nodes NDist -i -in ${stub}_U.fa > ${stub}_U_I.ndist
+usearch -cluster_fast ${stub}_U.fa -id 0.70 -centroids ${stub}_U_c.fasta -uc ${stub}_U.uc
+Sub.pl ${stub}_U.fa ${stub}_U.uc > ${stub}_U.ucn
+if [ ! -d ${stub}_split ]; then
+    mkdir ${stub}_split
+    cp ${stub}.dat ${stub}.map ${stub}_U.ucn ${stub}_split
+fi
+cd ${stub}_split
+	
+SplitClusterClust -din ${stub}.dat -min ${stub}.map -uin ${stub}_U.ucn -m 100 > ${stub}_split.stats
+
+
+
+#mpirun $mpiextra -np $nodes NDist -i -in ${stub}_U.fa > ${stub}_U_I.ndist
 xs=$?
 if [[ $xs != 0 ]]; then
-    echo "NDist exited with status $xs"
+    echo "Presplitting exited with status $xs"
     exit $xs
 fi
 
-echo "Cluster sequences..";
-#cluster sequences using average linkage and sequence weights - large datasets only
-FCluster -a -w -in ${stub}_U_I.ndist -out ${stub}_U_I > ${stub}_U_I.fcout
-xs=$?
-if [[ $xs != 0 ]]; then
-    echo "FCluster exited with status $xs"
-    exit $xs
-fi
-rm ${stub}_U_I.ndist
-
-#Split into clusters - large datasets only
-SplitClusterEven -din ${stub}.dat -min ${stub}.filtered.map -tin ${stub}_U_I.tree -s 5000 -m 1000 > ${stub}_split.stats
-xs=$?
-if [[ $xs != 0 ]]; then
-    echo "SplitClusterEven exited with status $xs"
-    exit $xs
-fi
 
 #Run PyroDist and PyroNoise on each cluster separetely
 echo "Calculating .fdist files using PyroDist"
