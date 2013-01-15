@@ -1,16 +1,16 @@
-CC     = mpicc
+CC     = gcc
 CFLAGS = -O3
 EFLAGS =  
-EFILE  = PyroDist
+EFILE  = SplitClusterClust
 LIBS   = -lm 
-OBJS   = PyroDist.o
+OBJS   = SplitClusterClust.o
 
 $(EFILE) : $(OBJS)
 	@echo "linking..."
 	$(CC) $(EFLAGS) -o $(EFILE) $(OBJS) $(LIBS)
 
-$(OBJS) : PyroDist.c PyroDist.h
+$(OBJS) : SplitClusterClust.c SplitClusterClust.h
 	$(CC) $(CFLAGS) -c $*.c 
 
 clean:
-	rm -rf *.o PyroDist
+	rm -rf *.o SplitClusterClust
