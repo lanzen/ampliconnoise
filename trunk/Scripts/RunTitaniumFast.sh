@@ -2,20 +2,20 @@
 
 #barcode file
 bc=keys.csv
-nodes=32
+nodes=4
 snodes=1
 min_size=50
-max_size=50000
+max_size=2000
 #Fixes warning message with uDAPL error message appearing:
 mpiextra="--mca btl tcp,self" 
 
 export AMPLICON_NOISE_HOME=$HOME/AmpliconNoiseV1.26/
-export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_E123.dat
+export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_Titanium.dat
 export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/Tran.dat
 
 #hardcoded parameters for AmpliconNoise
 
-length=220
+length=400
 #truncation length
 
 spyro=60
@@ -24,7 +24,7 @@ spyro=60
 cpyro=0.01
 #PyroNoise cluster init
 
-sseq=30
+sseq=25
 #SeqNoise cluster size
 
 cseq=0.08
@@ -38,7 +38,7 @@ beta=0.5
 
 minflows=360
 
-maxflows=360
+maxflows=720
 
 #file locations
 
@@ -89,6 +89,7 @@ if [ -f All_Good.fa ]; then
 fi
 
 echo -e 'Sample\tTotal\tPre-filtered\tUnique\tChimeric\tCleanSeq\tCleanReads' > AN_stats.txt
+
 
 filter()
 {
@@ -215,7 +216,7 @@ pyronoisesplit()
 	#use NDist to get sequence distances 
 	if [ ! -f ${stub}_U.uc ]; then
     		echo "Clustering with uclust"
-		usearch -cluster_fast ${stub}_U.fa -id 0.75 -centroids ${stub}_U_c.fasta -uc ${stub}_U.uc
+		usearch -cluster_fast ${stub}_U.fa -id 0.70 -centroids ${stub}_U_c.fasta -uc ${stub}_U.uc
 		Sub.pl ${stub}_U.fa ${stub}_U.uc > ${stub}_U.ucn
 	fi
 	if [ ! -d ${stub}_split ]; then
@@ -254,6 +255,15 @@ pyronoisesplit()
         	fi
 	done
 
+	echo "Cropping barcodes, primes and low quality end (at 400 bp)"
+
+	
+	
+	for dir in C*
+	do
+		Parse.pl ${barcode}${primer} $length < ${dir}/${dir}_s${spyro}_cd.fa > ${dir}/${dir}_s${spyro}_T${length}.fa
+	done
+	
 	cat C*/C*_s${spyro}_cd.fa > All_s${spyro}_cd.fa
 	cat C*/C*_s${spyro}.mapping > All_s${spyro}.mapping
         
@@ -264,6 +274,106 @@ pyronoisesplit()
 	cp All_s${spyro}.mapping ../${pstub}.mapping
 	cd ..
         Parse.pl ${barcode}${primer} $length < ${pstub}_cd.fa > ${pstub}_T${length}.fa
+}
+
+seqnoisesplit()
+{
+        if [ ! -f ${sstub}_cd.fa ]; then
+		
+        	cd ${stub}_split
+		echo "Change into ${stub}_split"
+		for dir in C*
+        	do
+			cd $dir
+			echo "Change into ${dir}"
+			if [ ! -f ${dir}_s${spyro}_T${length}_s${sseq}_cd.fa ]; then
+	
+				Parse.pl ${barcode}${primer} $length < ${dir}_s${spyro}_cd.fa > ${dir}_s${spyro}_T${length}.fa
+				command="Parse.pl ${barcode}${primer} $length < ${dir}_s${spyro}_cd.fa > ${dir}_s${spyro}_T${length}.fa"
+				echo $command
+				scount=`grep -ce ">" ${dir}_s${spyro}_T${length}.fa`
+                		if [ $scount -lt 100 ]; then
+                        		tnodes=$snodes
+                		else
+                        		tnodes=$nodes
+                		fi
+
+                		echo "Running SeqDist for ${stub}-${dir}"
+                		mpirun $mpiextra -np $tnodes SeqDist -in ${dir}_s${spyro}_T${length}.fa > ${dir}_s${spyro}_T${length}.seqdist
+                		xs=$?
+                		if [[ $xs != 0 ]]; then
+                        		echo "SeqDist exited with status $xs"
+                        		exit $xs
+                		fi
+
+                		echo "Clustering SeqDist output for ${stub}"
+                		FCluster -in ${dir}_s${spyro}_T${length}.seqdist -out ${dir}_s${spyro}_T${length} > ${dir}_s${spyro}_T${length}.fcout
+                
+				xs=$?
+                		if [[ $xs != 0 ]]; then
+                        		echo "FCluster exited with status $xs"
+                        		exit $xs
+                		fi
+
+               			echo "Running SeqNoise for ${stub}"
+				mpirun $mpiextra -np $tnodes SeqNoise -in ${dir}_s${spyro}_T${length}.fa -din ${dir}_s${spyro}_T${length}.seqdist -lin ${dir}_s${spyro}_T${length}.list -out ${dir}_s${spyro}_T${length}_s${sseq} -s $sseq -c $cseq -min ${dir}_s${spyro}.mapping > ${dir}_s${spyro}.snout
+                		xs=$?
+                		if [[ $xs != 0 ]]; then
+                        		echo "SeqNoise exited with status $xs"
+                        		exit $xs
+                		fi
+			fi
+
+			cd ..
+		done
+
+		cat C*/C*_s${spyro}_T${length}_s${sseq}_cd.fa > ../${sstub}_A.fa
+        	
+		cat C*/C*_s${spyro}_T${length}_s${sseq}_cd.mapping > ../${sstub}_A.mapping
+
+		cd ..
+
+		echo "Running SeqDist for All"
+
+                scount=`grep -ce ">" ${sstub}_A.fa`
+                if [ $scount -lt 100 ]; then
+                	tnodes=$snodes
+                else
+                	tnodes=$nodes
+                fi
+
+
+
+                mpirun $mpiextra -np $tnodes SeqDist -in ${sstub}_A.fa > ${sstub}_A.seqdist
+                
+		xs=$?
+                
+		if [[ $xs != 0 ]]; then
+                	echo "SeqDist exited with status $xs"
+                    	exit $xs
+                fi
+
+                echo "Clustering SeqDist output for All"
+                
+		FCluster -in ${sstub}_A.seqdist -out ${sstub}_A > ${sstub}_A.fcout
+
+                xs=$?
+                if [[ $xs != 0 ]]; then
+                	echo "FCluster exited with status $xs"
+                        exit $xs
+                fi
+
+                echo "Running SeqNoise for All"
+                
+		mpirun $mpiextra -np $tnodes SeqNoise -in ${sstub}_A.fa -din ${sstub}_A.seqdist -lin ${sstub}_A.list -out ${sstub} -s $sseq -c $cseq -min ${sstub}_A.mapping > ${sstub}_A.snout
+                
+		xs=$?
+                if [[ $xs != 0 ]]; then
+                	echo "SeqNoise exited with status $xs"
+                        exit $xs
+                fi
+		
+        fi
 }
 
 
@@ -305,7 +415,7 @@ seqnoise()
 
 perseus()
 {
-	echo "Running Perseus for ${stub}"
+	echo "Running PerseusD for ${stub}"
         del=s${spyro}_T${length}_s${sseq}_
         sed "s/$del//g" ${sstub}_cd.fa > ${stub}_F.fa
 
@@ -366,7 +476,13 @@ do
 			fi	
 			;;
 		seqnoise)
-			seqnoise				
+			
+                        if [ "$size" -lt "$max_size" ] ; then
+                        	seqnoise
+                        else
+                               	seqnoisesplit
+                        fi
+                   				
 			;;
 		perseus)
 			perseus		
@@ -381,11 +497,12 @@ do
 
 			if [ "$size" -lt "$max_size" ] ; then
                         	pyronoise
+				seqnoise
                         else
                                 pyronoisesplit
+				seqnoisesplit
                         fi
 
-			seqnoise
 			perseus
 			;;
 		esac

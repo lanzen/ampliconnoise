@@ -6,8 +6,6 @@ file=$1; #first argument name of dat file
 defaultPrimer="ATTAGATACCC[ACTG]GGTAG"
 primer=${2:-$defaultPrimer}
 
-mpirun $mpiextra -np $nodes PyroNoiseM -din ${stub}.dat -out ${stub}_s60_c01 -lin ${stub}_X.list -s 60.0 -c 0.01 > ${stub}_s60_c01.pout
-
 echo $file
 stub=${file%.dat}
 
