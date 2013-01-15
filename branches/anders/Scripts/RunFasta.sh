@@ -12,12 +12,6 @@ if test $# -le 0; then
    exit -1
 fi
 
-if [ -n "$2" ]; then
-	primer=$2
-elif [ ! -f primer.fasta ]; then
-	echo "Can't find file primer.fasta containing the primer sequence!"
-	exit
-fi
 
 stub=${1//.fasta}
 stub=${stub//.fa}

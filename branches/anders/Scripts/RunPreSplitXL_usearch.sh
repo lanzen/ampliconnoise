@@ -49,18 +49,18 @@ export cropFL=`tail -1 $stub.stat.txt`
 echo "Getting unique sequences"
 FastaUnique -in ${stub}.filtered.fasta > ${stub}_U.fa
 
+
 #sequence distances - large datasets only
 echo "Calculating sequence distances"
 usearch -cluster_fast ${stub}_U.fa -id 0.70 -centroids ${stub}_U_c.fasta -uc ${stub}_U.uc
 Sub.pl ${stub}_U.fa ${stub}_U.uc > ${stub}_U.ucn
 if [ ! -d ${stub}_split ]; then
     mkdir ${stub}_split
-    cp ${stub}.dat ${stub}.map ${stub}_U.ucn ${stub}_split
+    cp ${stub}.dat ${stub}.filtered.map ${stub}_U.ucn ${stub}_split
 fi
 cd ${stub}_split
 	
-SplitClusterClust -din ${stub}.dat -min ${stub}.map -uin ${stub}_U.ucn -m 100 > ${stub}_split.stats
-
+SplitClusterClust -din ${stub}.dat -min ${stub}.filtered.map -uin ${stub}_U.ucn -m 100 > ${stub}_split.stats
 
 
 #mpirun $mpiextra -np $nodes NDist -i -in ${stub}_U.fa > ${stub}_U_I.ndist
@@ -175,9 +175,18 @@ if [[ $xs != 0 ]]; then
     exit $xs
 fi
 
-echo "Writing otu representatives, calculating Rarefaction and Chao2 estimates"
+echo "Writing otu representatives, calculating Rarefaction and Chao1 estimates"
 
 java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -repseq ${stub}_F_Good.fa > ${stub}_OTUs_${otu_dist}.fasta
+
+us=`grep -ce ">" ${stub}_F.fa`
+cs=`grep -ce ">" ${stub}_F_Chi.fa`
+otus=`grep -ce ">" ${stub}_OTUs_${otu_dist}.fasta`
+
+cd ..
+ln -s ${stub}_split/${stub}_F_Good.fa .
+ln -s ${stub}_split/${stub}_F_Good.list .
+
 
 if [ ! -f AN_stats.txt ]; then
     echo -e 'Sample\tTotal reads\tPre-filtered reads\tUnique sequences\tChimeric sequences\tRemaining unique sequences\tRemaining reads\tOTUs\tShannon index\tSimpsons index (1-D)' > AN_stats.txt
@@ -185,11 +194,8 @@ fi
 
 tr=`grep -ce ">" ${stub}.raw.fasta`
 pf=`grep -ce ">" ${stub}.filtered.fasta`
-us=`grep -ce ">" ${stub}_F.fa`
-cs=`grep -ce ">" ${stub}_F_Chi.fa`
 rus=`grep -ce ">" ${stub}_F_Good.fa`
 rr=`java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -s -weigh -totalreads`
-otus=`grep -ce ">" ${stub}_OTUs_${otu_dist}.fasta`
 shannon=`java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -weigh -s -shannon`
 simpson=`java ampliconflow.otu.OTUUtils -in ${stub}_F_Good.list -dist $otu_dist -weigh -s -simpson`
 
