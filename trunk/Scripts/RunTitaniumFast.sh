@@ -9,7 +9,6 @@ max_size=2000
 #Fixes warning message with uDAPL error message appearing:
 mpiextra="--mca btl tcp,self" 
 
-export AMPLICON_NOISE_HOME=$HOME/AmpliconNoiseV1.26/
 export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_Titanium.dat
 export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/Tran.dat
 
