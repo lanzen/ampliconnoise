@@ -68,6 +68,7 @@ while(my $line = <STDIN>){
 	my $read = flowToSeq($length,@flows);
 	   
 	if($length >= $minFlows && $read=~/^TCAG.*(${primer}.*)/){
+#	if($length >= $minFlows && $read=~/^.*(${primer}.*)/){
 	    if($length > $maxFlows){
 	    	$length = $maxFlows;
 	    }

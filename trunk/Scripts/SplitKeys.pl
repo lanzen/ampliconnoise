@@ -24,7 +24,7 @@ while($line = <FILE>){
 
     @tokens = split(/,/,$line);
 
-    my $tag = $tokens[1];
+    my $tag = uc($tokens[1]);
 
     $fileName = $tokens[0].".raw";
     #my $fileName = "Seq${count}.fa";
