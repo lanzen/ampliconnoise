@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-my $tag = shift(@ARGV);
+my $tag = uc(shift(@ARGV));
 my $newLength = shift(@ARGV);
 
 $tag =~ /G*(.*)/;
