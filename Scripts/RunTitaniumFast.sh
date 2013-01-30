@@ -2,7 +2,7 @@
 
 #barcode file
 bc=keys.csv
-nodes=4
+nodes=2
 snodes=1
 min_size=50
 max_size=2000

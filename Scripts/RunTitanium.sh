@@ -198,6 +198,7 @@ pyronoise()
         	fi
 
         	echo "Cropping barcodes, primes and low quality end (at 400 bp)"
+#THIS STILL DOES NOT WORK FOR cropped barcodes!!
         	Parse.pl ${barcode}${primer} $length < ${pstub}_cd.fa > ${pstub}_T${length}.fa
 	fi
 }
