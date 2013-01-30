@@ -43,6 +43,12 @@ maxflows=720
 
 primerfile=primer.fasta
 
+lastline=$(tail -n 1 $bc; echo x); lastline=${lastline%x}
+if [ "${lastline: -1}" != $'\n' ]; then
+    echo >> $bc
+fi
+
+
 #read in primer sequence
 if [ ! -f $primerfile ]; then
         echo "Can't find file $primerfile containing the primer sequence!"
