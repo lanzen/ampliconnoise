@@ -15,6 +15,10 @@ snodes=1
 
 #barcode file
 bc=keys.csv
+lastline=$(tail -n 1 keys.csv; echo x); lastline=${lastline%x}
+if [ "${lastline: -1}" != $'\n' ]; then
+    echo >> keys.csv
+fi
 
 min_size=50
 max_size=2000
@@ -57,6 +61,10 @@ maxflows=720
 #file locations
 
 primerfile=primer.fasta
+lastline=$(tail -n 1 primer.fasta; echo x); lastline=${lastline%x}
+if [ "${lastline: -1}" != $'\n' ]; then
+    echo >> primer.fasta
+fi
 
 otudist=$2
 

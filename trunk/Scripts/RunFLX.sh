@@ -41,6 +41,12 @@ maxflows=360
 
 #file locations
 
+lastline=$(tail -n 1 $bc; echo x); lastline=${lastline%x}
+if [ "${lastline: -1}" != $'\n' ]; then
+    echo >> $bc
+fi
+
+
 primerfile=primer.fasta
 
 #read in primer sequence
