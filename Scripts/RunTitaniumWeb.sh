@@ -2,7 +2,6 @@
 
 #Variables needed for mpirun and PyroNoise 
 #(change these settings when installing webapp on new system)
-export AMPLICON_NOISE_HOME=$HOME/kode/AmpliconNoise
 export MPI_HOME=/usr/lib64/openmpi/1.4-gcc
 
 #Max no. of unique sequences per sample after PyroNoise
@@ -201,7 +200,7 @@ do
 		if [ $scount -gt $SEQ_LIMIT ]; then
 		    echo "Aborting run: Sample $stub contains too many sequences after PyroNoise step ($scount)."  >> AN_Progress.txt
 		    echo "Due to time restrictions your job is therefore cancelled. Please contact the service group for assistance (services@bioinfo.no)"  >> AN_Progress.txt
-		    exit -1
+		    exit 134
 		fi
 	    else
 		echo "Error: $sstub_cd.fa does not exist" >> AN_Progress.txt
@@ -316,9 +315,9 @@ do
                 	fi
 			
 			if [ $scount -gt $ SEQ_LIMIT ]; then
-			    echo "Sample $stub contains too many sequences after PyroNoise step ($scount)."  >> AN_Progress.txt
+			    echo "Aborting run: Sample $stub contains too many sequences after PyroNoise step ($scount)."  >> AN_Progress.txt
 			    echo "Due to time restrictions your job is therefore cancelled. Please contact the service group for assistance (services@bioinfo.no)"  >> AN_Progress.txt
-			    exit -1
+			    exit 134
 			fi
 			
                 	echo "Running SeqDist for ${stub}-${dir}"  >> AN_Progress.txt
