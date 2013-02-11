@@ -1,5 +1,5 @@
 #!/bin/bash
-
+alcu
 #Variables needed for mpirun and PyroNoise 
 #(change these settings when installing webapp on new system)
 export MPI_HOME=/usr/lib64/openmpi/1.4-gcc
@@ -9,10 +9,10 @@ export MPI_HOME=/usr/lib64/openmpi/1.4-gcc
 SEQ_LIMIT=5000
 
 #number of cores to run on
-nodes=2
-snodes=1
+nodes=12
+snodes=2
 
-#barcode file
+#barode file
 bc=keys.csv
 lastline=$(tail -n 1 keys.csv; echo x); lastline=${lastline%x}
 if [ "${lastline: -1}" != $'\n' ]; then
@@ -240,11 +240,10 @@ do
     	    FastaUnique -in ${stub}.fa > ${stub}_U.fa
 	    
              #use uclust to get sequence distances 
-	    if [ ! -f ${stub}_U.uc ]; then
-    		echo "Clustering with uclust"  >> AN_Progress.txt
-		usearch -cluster_fast ${stub}_U.fa -id 0.70 -centroids ${stub}_U_c.fasta -uc ${stub}_U.uc
-		Sub.pl ${stub}_U.fa ${stub}_U.uc > ${stub}_U.ucn
-	    fi
+	    echo "Clustering with uclust"  >> AN_Progress.txt
+	    usearch -cluster_fast ${stub}_U.fa -id 0.70 -centroids ${stub}_U_c.fasta -uc ${stub}_U.uc > /dev/null
+	    Sub.pl ${stub}_U.fa ${stub}_U.uc > ${stub}_U.ucn
+	    
 	    if [ ! -d ${stub}_split ]; then
 		mkdir ${stub}_split
 		cp ${stub}.dat ${stub}.map ${stub}_U.ucn ${stub}_split
@@ -253,22 +252,18 @@ do
 	    
 	    SplitClusterClust -din ${stub}.dat -min ${stub}.map -uin ${stub}_U.ucn -m 100 > ${stub}_split.stats
 
-	    echo "Calculating .fdist files"
+	    echo "Calculating .fdist files"  >> AN_Progress.txt
 	    for c in C*
 	    do
-        	if [ ! -f ${c}/${c}.fdist ] ; then
-                    mpirun -np $nodes PyroDist -in ${c}/${c}.dat -out ${c}/${c} > ${c}/${c}.fout
-        	fi
+                mpirun -np $nodes PyroDist -in ${c}/${c}.dat -out ${c}/${c} > ${c}/${c}.fout
 	    done
 		
 	    echo "Clustering .fdist files"  >> AN_Progress.txt
 		
 	    for c in C*
 	    do
-        	if [ ! -f ${c}/${c}_X.list ] ; then
-                    FCluster -in ${c}/${c}.fdist -out ${c}/${c}_X > ${c}/${c}.fout
-		    rm ${c}/${c}.fdist
-        	fi
+                FCluster -in ${c}/${c}.fdist -out ${c}/${c}_X > ${c}/${c}.fout
+		rm ${c}/${c}.fdist
 	    done
 	    
 	    echo "Running PyroNoise"  >> AN_Progress.txt
