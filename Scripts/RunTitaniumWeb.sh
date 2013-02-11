@@ -155,254 +155,248 @@ do
     pstub=${stub}_s${spyro}
     sstub=${pstub}_T${length}_s${sseq}
     echo "Number of reads = ${size}" >> AN_Progress.txt
-    if [ "$size" -gt "$min_size" ] ; then
-	if [ "$size" -lt "$max_size" ] ; then
 
-		## ___ RUNNING NORMAL PYRONOISE AND SEQNOISE ___
-	    echo "Running PyroDist for ${stub}" >> AN_Progress.txt
-	    
-	    mpirun $mpiextra -np $nodes PyroDist -in ${stub}.dat -out ${stub} > ${stub}.fout
-	    xs=$?
-	    if [[ $xs != 0 ]]; then
-		echo "PyroDist exited with status $xs"  >> AN_Progress.txt
-		exit $xs
-	    fi
-	    echo "Clustering PyroDist output for ${stub}"  >> AN_Progress.txt
-	    
-	    FCluster -in ${stub}.fdist -out ${stub}_X > ${stub}.fout
-	    xs=$?
-	    if [[ $xs != 0 ]]; then
-		echo "FCluster exited with status $xs"  >> AN_Progress.txt
-		exit $xs
-	    fi
-	    
-	    rm ${stub}.fdist ${stub}_X.otu ${stub}_X.tree
-	    
-	    echo "Running PyronoiseM for ${stub}"  >> AN_Progress.txt
-	    mpirun $mpiextra -np $nodes PyroNoiseM -din ${stub}.dat -out ${pstub} -lin ${stub}_X.list -s $spyro -c $cpyro > ${pstub}.pout
-            xs=$?
-            if [[ $xs != 0 ]]; then
-                echo "PyroNoiseM parsing exited with status $xs"  >> AN_Progress.txt
-                exit $xs
-            fi
-	    
-            echo "Cropping barcodes, primes and low quality end (at 400 bp)"  >> AN_Progress.txt
-            Parse.pl ${barcode}${primer} $length < ${pstub}_cd.fa > ${pstub}_T${length}.fa
-	    
-	    if [ ! -f ${sstub}_cd.fa ]; then
-		scount=`grep -ce ">" ${pstub}_cd.fa`
-		if [ $scount -lt 100 ]; then 
-		    tnodes=$snodes
-		else
-		    tnodes=$nodes
-		fi
-		
-		if [ $scount -gt $SEQ_LIMIT ]; then
-		    echo "Aborting run: Sample $stub contains too many sequences after PyroNoise step ($scount)."  >> AN_Progress.txt
-		    echo "Due to time restrictions your job is therefore cancelled. Please contact the service group for assistance (services@bioinfo.no)"  >> AN_Progress.txt
-		    exit 134
-		fi
-	    else
-		echo "Error: $sstub_cd.fa does not exist" >> AN_Progress.txt
-		exit -1
-	    fi
-	    
-	    echo "Running SeqDist for ${stub}"  >> AN_Progress.txt 
-            mpirun $mpiextra -np $tnodes SeqDist -in ${pstub}_T${length}.fa > ${pstub}_T${length}.seqdist
-            xs=$?
-            if [[ $xs != 0 ]]; then
-        	echo "Error: SeqDist exited with status $xs" >> AN_Progress.txt
-                exit $xs
-            fi
+    if [ $size -lt $min_size ] ; then
+	echo "WARNING: Insufficient reads remain after filtering. The dataset will not be filtered" >> AN_Progress.txt
+    elif [ $size" -lt "$max_size ] ; then
 
-        	echo "Clustering SeqDist output for ${stub}"  >> AN_Progress.txt
-        	FCluster -in ${pstub}_T${length}.seqdist -out ${pstub}_T${length} > ${pstub}_T${length}.fcout
-        	xs=$?
-        	if [[ $xs != 0 ]]; then
-        		echo "Error: FCluster exited with status $xs"  >> AN_Progress.txt
-                	exit $xs
-        	fi
-		echo "Running SeqNoise for ${stub}"  >> AN_Progress.txt
-       		mpirun $mpiextra -np $tnodes SeqNoise -in ${pstub}_T${length}.fa -din ${pstub}_T${length}.seqdist -lin ${pstub}_T${length}.list -out ${sstub} -s $sseq -c $cseq -min ${pstub}.mapping > ${sstub}.snout
-        	 xs=$?
-        	if [[ $xs != 0 ]]; then
-        	    echo "Error: SeqNoise exited with status $xs"  >> AN_Progress.txt
-                	exit $xs
-        	fi
-	    
-	else
-	    
-	    ## ___ RUNNING PRESPLITTING FOLLOWED BY PYRONOISE AND SEQNOISE ___
-	    echo "Splitting ${stub}"  >> AN_Progress.txt
-	    
-            #get unique sequences
-    	    echo "Getting unique sequences"  >> AN_Progress.txt
-    	    FastaUnique -in ${stub}.fa > ${stub}_U.fa
-	    
-             #use uclust to get sequence distances 
-	    echo "Clustering with uclust"  >> AN_Progress.txt
-	    usearch -cluster_fast ${stub}_U.fa -id 0.70 -centroids ${stub}_U_c.fasta -uc ${stub}_U.uc > /dev/null
-	    Sub.pl ${stub}_U.fa ${stub}_U.uc > ${stub}_U.ucn
-	    
-	    if [ ! -d ${stub}_split ]; then
-		mkdir ${stub}_split
-		cp ${stub}.dat ${stub}.map ${stub}_U.ucn ${stub}_split
-	    fi
-	    cd ${stub}_split
-	    
-	    SplitClusterClust -din ${stub}.dat -min ${stub}.map -uin ${stub}_U.ucn -m 100 > ${stub}_split.stats
-
-	    echo "Calculating .fdist files"  >> AN_Progress.txt
-	    for c in C*
-	    do
-                mpirun -np $nodes PyroDist -in ${c}/${c}.dat -out ${c}/${c} > ${c}/${c}.fout
-	    done
-		
-	    echo "Clustering .fdist files"  >> AN_Progress.txt
-		
-	    for c in C*
-	    do
-                FCluster -in ${c}/${c}.fdist -out ${c}/${c}_X > ${c}/${c}.fout
-		rm ${c}/${c}.fdist
-	    done
-	    
-	    echo "Running PyroNoise"  >> AN_Progress.txt
-	    for dir in C*
-	    do
-        	if [ ! -f ${dir}/${dir}_s${spyro}_cd.fa ] ; then
-                    mpirun -np $nodes PyroNoiseM -din ${dir}/${dir}.dat -out ${dir}/${dir}_s${spyro} -lin ${dir}/${dir}_X.list -s $spyro -c $cpyro > ${dir}/${dir}_${spyro}.pout
-        	fi
-	    done
-	    
-	    echo "Cropping barcodes, primes and low quality end (at 400 bp)"  >> AN_Progress.txt
-	    
-	    for dir in C*
-	    do
-		Parse.pl ${barcode}${primer} $length < ${dir}/${dir}_s${spyro}_cd.fa > ${dir}/${dir}_s${spyro}_T${length}.fa
-	    done
-	    
-	    cat C*/C*_s${spyro}_cd.fa > All_s${spyro}_cd.fa
-	    cat C*/C*_s${spyro}.mapping > All_s${spyro}.mapping
-	    
-	    sed "s/>.*\(_[0-9]\+_[0-9]\+\)/>${pstub}\1/" All_s${spyro}_cd.fa > ../${pstub}_cd.fa
-	    
-	    cp All_s${spyro}.mapping ../${pstub}.mapping
-	    cd ..
-	    Parse.pl ${barcode}${primer} $length < ${pstub}_cd.fa > ${pstub}_T${length}.fa
-	    
-	    if [ ! -f ${sstub}_cd.fa ]; then
-		
-        	cd ${stub}_split
-		for dir in C*
-        	do
-		    cd $dir
-		    
-		    if [ ! -f ${dir}_s${spyro}_T${length}_s${sseq}_cd.fa ]; then
-			
-			Parse.pl ${barcode}${primer} $length < ${dir}_s${spyro}_cd.fa > ${dir}_s${spyro}_T${length}.fa
-			command="Parse.pl ${barcode}${primer} $length < ${dir}_s${spyro}_cd.fa > ${dir}_s${spyro}_T${length}.fa"
-			
-			scount=`grep -ce ">" ${dir}_s${spyro}_T${length}.fa`
-                	if [ $scount -lt 100 ]; then
-                            tnodes=$snodes
-                	else
-                            tnodes=$nodes
-                	fi
-			
-			if [ $scount -gt $ SEQ_LIMIT ]; then
-			    echo "Aborting run: Sample $stub contains too many sequences after PyroNoise step ($scount)."  >> AN_Progress.txt
-			    echo "Due to time restrictions your job is therefore cancelled. Please contact the service group for assistance (services@bioinfo.no)"  >> AN_Progress.txt
-			    exit 134
-			fi
-			
-                	echo "Running SeqDist for ${stub}-${dir}"  >> AN_Progress.txt
-                	mpirun $mpiextra -np $tnodes SeqDist -in ${dir}_s${spyro}_T${length}.fa > ${dir}_s${spyro}_T${length}.seqdist
-                	xs=$?
-                	if [[ $xs != 0 ]]; then
-                            echo "Error: SeqDist exited with status $xs"  >> AN_Progress.txt
-                            exit $xs
-                	fi
-			
-                	echo "Clustering SeqDist output for ${stub}"  >> AN_Progress.txt
-                	FCluster -in ${dir}_s${spyro}_T${length}.seqdist -out ${dir}_s${spyro}_T${length} > ${dir}_s${spyro}_T${length}.fcout
-			
-			xs=$?
-                	if [[ $xs != 0 ]]; then
-                            echo "Error: FCluster exited with status $xs"  >> AN_Progress.txt
-                            exit $xs
-                	fi
-			
-               		echo "Running SeqNoise for ${stub}"  >> AN_Progress.txt
-			mpirun $mpiextra -np $tnodes SeqNoise -in ${dir}_s${spyro}_T${length}.fa -din ${dir}_s${spyro}_T${length}.seqdist -lin ${dir}_s${spyro}_T${length}.list -out ${dir}_s${spyro}_T${length}_s${sseq} -s $sseq -c $cseq -min ${dir}_s${spyro}.mapping > ${dir}_s${spyro}.snout
-                	xs=$?
-                	if [[ $xs != 0 ]]; then
-                            echo "Error: SeqNoise exited with status $xs"  >> AN_Progress.txt
-                            exit $xs
-                	fi
-		    fi
-
-		    cd ..
-		done
-		
-		cat C*/C*_s${spyro}_T${length}_s${sseq}_cd.fa > ../${sstub}_A.fa
-        	
-		cat C*/C*_s${spyro}_T${length}_s${sseq}_cd.mapping > ../${sstub}_A.mapping
-		
-		cd ..
-		
-		echo "Running SeqDist for All"  >> AN_Progress.txt
-		
-                scount=`grep -ce ">" ${sstub}_A.fa`
-                if [ $scount -lt 100 ]; then
-                    tnodes=$snodes
-                else
-                    tnodes=$nodes
-                fi
-		
-                mpirun $mpiextra -np $tnodes SeqDist -in ${sstub}_A.fa > ${sstub}_A.seqdist
-                
-		xs=$?
-                
-		if [[ $xs != 0 ]]; then
-                    echo "Error: SeqDist exited with status $xs"  >> AN_Progress.txt
-                    exit $xs
-                fi
-		
-                echo "Clustering SeqDist output for All"  >> AN_Progress.txt
-                
-		FCluster -in ${sstub}_A.seqdist -out ${sstub}_A > ${sstub}_A.fcout
-		
-                xs=$?
-                if [[ $xs != 0 ]]; then
-                    echo "Error: FCluster exited with status $xs"  >> AN_Progress.txt
-                    exit $xs
-                fi
-		
-                echo "Running SeqNoise for All"  >> AN_Progress.txt
-                
-		mpirun $mpiextra -np $tnodes SeqNoise -in ${sstub}_A.fa -din ${sstub}_A.seqdist -lin ${sstub}_A.list -out ${sstub} -s $sseq -c $cseq -min ${sstub}_A.mapping > ${sstub}_A.snout
-                
-		xs=$?
-                if [[ $xs != 0 ]]; then
-                    echo "Error: SeqNoise exited with status $xs"  >> AN_Progress.txt
-                    exit $xs
-                fi
-	    fi
-	fi
-	echo "Running PerseusD for ${stub}" >> AN_Progress.txt
-        del=s${spyro}_T${length}_s${sseq}_
-        sed "s/$del//g" ${sstub}_cd.fa > ${stub}_F.fa
+	## ___ RUNNING NORMAL PYRONOISE AND SEQNOISE ___
+	echo "Running PyroDist for ${stub}" >> AN_Progress.txt
 	
-        PerseusD -sin ${stub}_F.fa > ${stub}_F.class
+	mpirun $mpiextra -np $nodes PyroDist -in ${stub}.dat -out ${stub} > ${stub}.fout
+	xs=$?
+	if [[ $xs != 0 ]]; then
+	    echo "PyroDist exited with status $xs"  >> AN_Progress.txt
+	    exit $xs
+	fi
+	echo "Clustering PyroDist output for ${stub}"  >> AN_Progress.txt
+	
+	FCluster -in ${stub}.fdist -out ${stub}_X > ${stub}.fout
+	xs=$?
+	if [[ $xs != 0 ]]; then
+	    echo "FCluster exited with status $xs"  >> AN_Progress.txt
+	    exit $xs
+	fi
+	
+	rm ${stub}.fdist ${stub}_X.otu ${stub}_X.tree
+	
+	echo "Running PyroNoise for ${stub}"  >> AN_Progress.txt
+	mpirun $mpiextra -np $nodes PyroNoiseM -din ${stub}.dat -out ${pstub} -lin ${stub}_X.list -s $spyro -c $cpyro > ${pstub}.pout
         xs=$?
         if [[ $xs != 0 ]]; then
-            echo "Error: Persus exited with status $xs" >> AN_Progress.txt
+            echo "PyroNoiseM parsing exited with status $xs"  >> AN_Progress.txt
             exit $xs
         fi
 	
-        FilterGoodClass.pl ${stub}_F.fa ${stub}_F.class 0.5 1>${stub}_F_Chi.fa 2>${stub}_F_Good.fa
+        echo "Cropping barcodes, primes and low quality end (at 400 bp)"  >> AN_Progress.txt
+        Parse.pl ${barcode}${primer} $length < ${pstub}_cd.fa > ${pstub}_T${length}.fa
 	
+	if [ ! -f ${sstub}_cd.fa ]; then
+	    scount=`grep -ce ">" ${pstub}_cd.fa`
+	    echo "Counted $scount unique sequences after PyroNoise" >> AN_Progress.txt
+
+	    if [ $scount -lt 100 ]; then 
+		tnodes=$snodes
+	    else
+		tnodes=$nodes
+	    fi
+	    
+	    if [ $scount -gt $SEQ_LIMIT ]; then
+		echo "ABORTING RUN: Sample $stub contains too many sequences after PyroNoise step."  >> AN_Progress.txt
+		echo "Due to time restrictions your job is therefore cancelled. Please contact the service group for assistance (services@bioinfo.no)"  >> AN_Progress.txt
+		exit 134
+	    fi
+	else
+	    echo "Error: $sstub_cd.fa does not exist" >> AN_Progress.txt
+	    exit -1
+	fi
+	
+	echo "Running SeqDist for ${stub}"  >> AN_Progress.txt 
+        mpirun $mpiextra -np $tnodes SeqDist -in ${pstub}_T${length}.fa > ${pstub}_T${length}.seqdist
+        xs=$?
+        if [[ $xs != 0 ]]; then
+            echo "Error: SeqDist exited with status $xs" >> AN_Progress.txt
+            exit $xs
+        fi
+
+        echo "Clustering SeqDist output for ${stub}"  >> AN_Progress.txt
+        FCluster -in ${pstub}_T${length}.seqdist -out ${pstub}_T${length} > ${pstub}_T${length}.fcout
+        xs=$?
+        if [[ $xs != 0 ]]; then
+            echo "Error: FCluster exited with status $xs"  >> AN_Progress.txt
+            exit $xs
+        fi
+	echo "Running SeqNoise for ${stub}"  >> AN_Progress.txt
+       	mpirun $mpiextra -np $tnodes SeqNoise -in ${pstub}_T${length}.fa -din ${pstub}_T${length}.seqdist -lin ${pstub}_T${length}.list -out ${sstub} -s $sseq -c $cseq -min ${pstub}.mapping > ${sstub}.snout
+        xs=$?
+        if [[ $xs != 0 ]]; then
+            echo "Error: SeqNoise exited with status $xs"  >> AN_Progress.txt
+            exit $xs
+        fi
+
+	echo "Running PerseusD for ${stub}" >> AN_Progress.txt
+	del=s${spyro}_T${length}_s${sseq}_
+	sed "s/$del//g" ${sstub}_cd.fa > ${stub}_F.fa
+	
+	PerseusD -sin ${stub}_F.fa > ${stub}_F.class
+	xs=$?
+	if [[ $xs != 0 ]]; then
+            echo "Error: Persus exited with status $xs" >> AN_Progress.txt
+            exit $xs
+	fi
+	
+	FilterGoodClass.pl ${stub}_F.fa ${stub}_F.class 0.5 1>${stub}_F_Chi.fa 2>${stub}_F_Good.fa
+	
+    else
+	
+	    ## ___ RUNNING PRESPLITTING FOLLOWED BY PYRONOISE AND SEQNOISE ___
+	echo "Splitting ${stub}"  >> AN_Progress.txt
+	
+            #get unique sequences
+    	echo "Getting unique sequences"  >> AN_Progress.txt
+    	FastaUnique -in ${stub}.fa > ${stub}_U.fa
+	
+             #use usearch to get sequence distances 
+	echo "Clustering with usearch"  >> AN_Progress.txt
+	usearch -cluster_fast ${stub}_U.fa -id 0.70 -centroids ${stub}_U_c.fasta -uc ${stub}_U.uc > /dev/null
+	Sub.pl ${stub}_U.fa ${stub}_U.uc > ${stub}_U.ucn
+	
+	if [ ! -d ${stub}_split ]; then
+	    mkdir ${stub}_split
+	    cp ${stub}.dat ${stub}.map ${stub}_U.ucn ${stub}_split
+	fi
+	cd ${stub}_split
+	
+	SplitClusterClust -din ${stub}.dat -min ${stub}.map -uin ${stub}_U.ucn -m 100 > ${stub}_split.stats
+
+	echo "Running PyroDist (clustered mode)"  >> AN_Progress.txt
+	for c in C*
+	do
+            mpirun $mpiextra -np $nodes PyroDist -in ${c}/${c}.dat -out ${c}/${c} > ${c}/${c}.fout
+	done
+	
+	echo "Clustering PyroDist output (clustered mode)"  >> AN_Progress.txt
+	
+	for c in C*
+	do
+            FCluster -in ${c}/${c}.fdist -out ${c}/${c}_X > ${c}/${c}.fout
+	    rm ${c}/${c}.fdist
+	done
+	
+	echo "Running PyroNoise (clustered mode)"  >> AN_Progress.txt
+	for dir in C*
+	do
+            mpirun $mpiextra -np $nodes PyroNoiseM -din ${dir}/${dir}.dat -out ${dir}/${dir}_s${spyro} -lin ${dir}/${dir}_X.list -s $spyro -c $cpyro > ${dir}/${dir}_${spyro}.pout
+	done
+	
+	echo "Cropping barcodes, primes and low quality end (at 400 bp; clustered mode)"  >> AN_Progress.txt
+	
+	for dir in C*
+	do
+	    Parse.pl ${barcode}${primer} $length < ${dir}/${dir}_s${spyro}_cd.fa > ${dir}/${dir}_s${spyro}_T${length}.fa
+	done
+	
+	echo "Concatenating noise-cleaned sequenecs" >> AN_Progress.txt
+	cat C*/C*_s${spyro}_cd.fa > All_s${spyro}_cd.fa
+	cat C*/C*_s${spyro}.mapping > All_s${spyro}.mapping
+
+	controlcount=`grep -ce ">" All_s${spyro}_cd.fa`
+	echo "Counted $controlcount unique sequences after PyroNoise" >> AN_Progress.txt
+	
+	if [ $controlcount -gt $ SEQ_LIMIT ]; then
+	    echo "ABORTING RUN! Sample $stub contains too many sequences after PyroNoise step."  >> AN_Progress.txt
+	    echo "Due to time restrictions your job is therefore cancelled. Please contact the service group for assistance (services@bioinfo.no)"  >> AN_Progress.txt
+	    exit 134
+	fi
+
+	sed "s/>.*\(_[0-9]\+_[0-9]\+\)/>${pstub}\1/" All_s${spyro}_cd.fa > ../${pstub}_cd.fa
+	
+	cp All_s${spyro}.mapping ../${pstub}.mapping
+	cd ..
+	Parse.pl ${barcode}${primer} $length < ${pstub}_cd.fa > ${pstub}_T${length}.fa
+	
+        cd ${stub}_split
+	echo "Running SeqDist and SeqNoise (Clustered mode)"  >> AN_Progress.txt
+	for dir in C*
+        do
+	    cd $dir
+	    
+	    Parse.pl ${barcode}${primer} $length < ${dir}_s${spyro}_cd.fa > ${dir}_s${spyro}_T${length}.fa
+            mpirun $mpiextra -np $nodes SeqDist -in ${dir}_s${spyro}_T${length}.fa > ${dir}_s${spyro}_T${length}.seqdist
+            xs=$?
+            if [[ $xs != 0 ]]; then
+                echo "Error: SeqDist exited with status $xs"  >> AN_Progress.txt
+                exit $xs
+            fi
+	    
+            FCluster -in ${dir}_s${spyro}_T${length}.seqdist -out ${dir}_s${spyro}_T${length} > ${dir}_s${spyro}_T${length}.fcout
+	    
+	    xs=$?
+            if [[ $xs != 0 ]]; then
+                echo "Error: FCluster exited with status $xs"  >> AN_Progress.txt
+                exit $xs
+            fi
+	    
+            mpirun $mpiextra -np $nodes SeqNoise -in ${dir}_s${spyro}_T${length}.fa -din ${dir}_s${spyro}_T${length}.seqdist -lin ${dir}_s${spyro}_T${length}.list -out ${dir}_s${spyro}_T${length}_s${sseq} -s $sseq -c $cseq -min ${dir}_s${spyro}.mapping > ${dir}_s${spyro}.snout
+            xs=$?
+            if [[ $xs != 0 ]]; then
+                echo "Error: SeqNoise exited with status $xs"  >> AN_Progress.txt
+                exit $xs
+            fi
+	    cd ..
+	done
+	
+	cat C*/C*_s${spyro}_T${length}_s${sseq}_cd.fa > ../${sstub}_A.fa
+        cat C*/C*_s${spyro}_T${length}_s${sseq}_cd.mapping > ../${sstub}_A.mapping
+	
+	cd ..
+	
+	echo "Running SeqDist for All"  >> AN_Progress.txt
+	
+        scount=`grep -ce ">" ${sstub}_A.fa`
+	
+        mpirun $mpiextra -np $nodes SeqDist -in ${sstub}_A.fa > ${sstub}_A.seqdist
         
+	xs=$?
+        
+	if [[ $xs != 0 ]]; then
+            echo "Error: SeqDist exited with status $xs"  >> AN_Progress.txt
+            exit $xs
+        fi
+	
+        echo "Clustering SeqDist output for All"  >> AN_Progress.txt
+        
+	FCluster -in ${sstub}_A.seqdist -out ${sstub}_A > ${sstub}_A.fcout
+	
+        xs=$?
+        if [[ $xs != 0 ]]; then
+            echo "Error: FCluster exited with status $xs"  >> AN_Progress.txt
+            exit $xs
+        fi
+	
+        echo "Running SeqNoise for All"  >> AN_Progress.txt
+        
+	mpirun $mpiextra -np $nodes SeqNoise -in ${sstub}_A.fa -din ${sstub}_A.seqdist -lin ${sstub}_A.list -out ${sstub} -s $sseq -c $cseq -min ${sstub}_A.mapping > ${sstub}_A.snout
+        
+	xs=$?
+        if [[ $xs != 0 ]]; then
+            echo "Error: SeqNoise exited with status $xs"  >> AN_Progress.txt
+            exit $xs
+        fi
+
+	echo "Running PerseusD for ${stub}" >> AN_Progress.txt
+	del=s${spyro}_T${length}_s${sseq}_
+	sed "s/$del//g" ${sstub}_cd.fa > ${stub}_F.fa
+	
+	PerseusD -sin ${stub}_F.fa > ${stub}_F.class
+	xs=$?
+	if [[ $xs != 0 ]]; then
+            echo "Error: Persus exited with status $xs" >> AN_Progress.txt
+            exit $xs
+	fi
+	
+	FilterGoodClass.pl ${stub}_F.fa ${stub}_F.class 0.5 1>${stub}_F_Chi.fa 2>${stub}_F_Good.fa
+	
     fi
     
     if [ -f ${stub}.raw ] ; then
@@ -440,7 +434,6 @@ do
     fi
     
     echo -e "${stub}\t${tr}\t${pf}\t${us}\t${cs}\t${rus}\t$ccread" >> AN_stats.txt
-    
     let i=i+1
 done
 
