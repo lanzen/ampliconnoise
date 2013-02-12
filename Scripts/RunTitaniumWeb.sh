@@ -303,7 +303,7 @@ do
 	controlcount=`grep -ce ">" All_s${spyro}_cd.fa`
 	echo "Counted $controlcount unique sequences after PyroNoise" >> ../AN_Progress.txt
 	
-	if [ $controlcount -gt $ SEQ_LIMIT ]; then
+	if [ $controlcount -gt $SEQ_LIMIT ]; then
 	    echo "ABORTING RUN! Sample $stub contains too many sequences after PyroNoise step."  >> AN_Progress.txt
 	    echo "Due to time restrictions your job is therefore cancelled. Please contact the service group for assistance (services@bioinfo.no)"  >> ../AN_Progress.txt
 	    exit 134
