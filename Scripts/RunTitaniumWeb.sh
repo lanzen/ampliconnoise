@@ -1,5 +1,5 @@
 #!/bin/bash
-alcu
+
 #Variables needed for mpirun and PyroNoise 
 #(change these settings when installing webapp on new system)
 export MPI_HOME=/usr/lib64/openmpi/1.4-gcc
@@ -158,7 +158,7 @@ do
 
     if [ $size -lt $min_size ] ; then
 	echo "WARNING: Insufficient reads remain after filtering. The dataset will not be filtered" >> AN_Progress.txt
-    elif [ $size" -lt "$max_size ] ; then
+    elif [ $size" -lt $max_size ] ; then
 
 	## ___ RUNNING NORMAL PYRONOISE AND SEQNOISE ___
 	echo "Running PyroDist for ${stub}" >> AN_Progress.txt
