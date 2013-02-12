@@ -269,13 +269,13 @@ do
 	
 	SplitClusterClust -din ${stub}.dat -min ${stub}.map -uin ${stub}_U.ucn -m 100 > ${stub}_split.stats
 
-	echo "Running PyroDist (clustered mode)"  >> AN_Progress.txt
+	echo "Running PyroDist (clustered mode)"  >> ../AN_Progress.txt
 	for c in C*
 	do
             mpirun $mpiextra -np $nodes PyroDist -in ${c}/${c}.dat -out ${c}/${c} > ${c}/${c}.fout
 	done
 	
-	echo "Clustering PyroDist output (clustered mode)"  >> AN_Progress.txt
+	echo "Clustering PyroDist output (clustered mode)"  >> ../AN_Progress.txt
 	
 	for c in C*
 	do
@@ -283,29 +283,29 @@ do
 	    rm ${c}/${c}.fdist
 	done
 	
-	echo "Running PyroNoise (clustered mode)"  >> AN_Progress.txt
+	echo "Running PyroNoise (clustered mode)"  >> ../AN_Progress.txt
 	for dir in C*
 	do
             mpirun $mpiextra -np $nodes PyroNoiseM -din ${dir}/${dir}.dat -out ${dir}/${dir}_s${spyro} -lin ${dir}/${dir}_X.list -s $spyro -c $cpyro > ${dir}/${dir}_${spyro}.pout
 	done
 	
-	echo "Cropping barcodes, primes and low quality end (at 400 bp; clustered mode)"  >> AN_Progress.txt
+	echo "Cropping barcodes, primes and low quality end (at 400 bp; clustered mode)"  >> ../AN_Progress.txt
 	
 	for dir in C*
 	do
 	    Parse.pl ${barcode}${primer} $length < ${dir}/${dir}_s${spyro}_cd.fa > ${dir}/${dir}_s${spyro}_T${length}.fa
 	done
 	
-	echo "Concatenating noise-cleaned sequenecs" >> AN_Progress.txt
+	echo "Concatenating noise-cleaned sequenecs" >> ../AN_Progress.txt
 	cat C*/C*_s${spyro}_cd.fa > All_s${spyro}_cd.fa
 	cat C*/C*_s${spyro}.mapping > All_s${spyro}.mapping
 
 	controlcount=`grep -ce ">" All_s${spyro}_cd.fa`
-	echo "Counted $controlcount unique sequences after PyroNoise" >> AN_Progress.txt
+	echo "Counted $controlcount unique sequences after PyroNoise" >> ../AN_Progress.txt
 	
 	if [ $controlcount -gt $ SEQ_LIMIT ]; then
 	    echo "ABORTING RUN! Sample $stub contains too many sequences after PyroNoise step."  >> AN_Progress.txt
-	    echo "Due to time restrictions your job is therefore cancelled. Please contact the service group for assistance (services@bioinfo.no)"  >> AN_Progress.txt
+	    echo "Due to time restrictions your job is therefore cancelled. Please contact the service group for assistance (services@bioinfo.no)"  >> ../AN_Progress.txt
 	    exit 134
 	fi
 
