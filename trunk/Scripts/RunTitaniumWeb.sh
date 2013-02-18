@@ -249,10 +249,11 @@ do
 	
     else
 	
-	    ## ___ RUNNING PRESPLITTING FOLLOWED BY PYRONOISE AND SEQNOISE ___
+	## ___ RUNNING PRESPLITTING FOLLOWED BY PYRONOISE AND SEQNOISE ___
+
 	echo "Splitting ${stub}"  >> AN_Progress.txt
 	
-            #get unique sequences
+        #get unique sequences
     	echo "Getting unique sequences"  >> AN_Progress.txt
     	FastaUnique -in ${stub}.fa > ${stub}_U.fa
 	
@@ -274,6 +275,16 @@ do
 	do
             mpirun $mpiextra -np $nodes PyroDist -in ${c}/${c}.dat -out ${c}/${c} > ${c}/${c}.fout
 	done
+
+	if [[ $xs != 0 ]]; then
+	    echo "PyroDist exited with status $xs"  >> AN_Progress.txt
+	    exit $xs
+	fi
+
+	#Temp debug
+	#cd ..
+	#tar czf ${stub}_split.tar.gz ${stub}_split
+	#cd ${stub}_split
 	
 	echo "Clustering PyroDist output (clustered mode)"  >> ../AN_Progress.txt
 	
@@ -283,11 +294,21 @@ do
 	    rm ${c}/${c}.fdist
 	done
 	
+	if [[ $xs != 0 ]]; then
+	    echo "FCluster exited with status $xs"  >> AN_Progress.txt
+	    exit $xs
+	fi
+	
 	echo "Running PyroNoise (clustered mode)"  >> ../AN_Progress.txt
 	for dir in C*
 	do
             mpirun $mpiextra -np $nodes PyroNoiseM -din ${dir}/${dir}.dat -out ${dir}/${dir}_s${spyro} -lin ${dir}/${dir}_X.list -s $spyro -c $cpyro > ${dir}/${dir}_${spyro}.pout
 	done
+
+	if [[ $xs != 0 ]]; then
+	    echo "PyroNoise exited with status $xs"  >> AN_Progress.txt
+	    exit $xs
+	fi
 	
 	echo "Cropping barcodes, primes and low quality end (at 400 bp; clustered mode)"  >> ../AN_Progress.txt
 	
@@ -300,6 +321,7 @@ do
 	cat C*/C*_s${spyro}_cd.fa > All_s${spyro}_cd.fa
 	cat C*/C*_s${spyro}.mapping > All_s${spyro}.mapping
 
+	
 	controlcount=`grep -ce ">" All_s${spyro}_cd.fa`
 	echo "Counted $controlcount unique sequences after PyroNoise" >> ../AN_Progress.txt
 	
