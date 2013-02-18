@@ -100,8 +100,11 @@ fi
 
 echo "Primer sequence: $primer"  >> AN_Progress.txt
 
-echo "Generating .sff.txt file"  >> AN_Progress.txt
-sffinfo $1 >${stub}.sff.txt
+if [ ! -f ${stub}.sff.txt ]
+    echo "Generating .sff.txt file"  >> AN_Progress.txt
+    sffinfo $1 >${stub}.sff.txt
+fi
+
 xs=$?
 if [[ $xs != 0 ]]; then
     echo "Error: SFF parsing exited with status $xs" >> AN_Progress.txt
