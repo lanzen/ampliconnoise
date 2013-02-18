@@ -277,7 +277,7 @@ do
 	done
 
 	if [[ $xs != 0 ]]; then
-	    echo "PyroDist exited with status $xs"  >> AN_Progress.txt
+	    echo "PyroDist exited with status $xs"  >> ../AN_Progress.txt
 	    exit $xs
 	fi
 
@@ -295,7 +295,7 @@ do
 	done
 	
 	if [[ $xs != 0 ]]; then
-	    echo "FCluster exited with status $xs"  >> AN_Progress.txt
+	    echo "FCluster exited with status $xs"  >> ../AN_Progress.txt
 	    exit $xs
 	fi
 	
@@ -306,7 +306,7 @@ do
 	done
 
 	if [[ $xs != 0 ]]; then
-	    echo "PyroNoise exited with status $xs"  >> AN_Progress.txt
+	    echo "PyroNoise exited with status $xs"  >> ../AN_Progress.txt
 	    exit $xs
 	fi
 	
