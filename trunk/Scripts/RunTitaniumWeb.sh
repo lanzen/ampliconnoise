@@ -100,7 +100,7 @@ fi
 
 echo "Primer sequence: $primer"  >> AN_Progress.txt
 
-if [ ! -f ${stub}.sff.txt ]
+if [ ! -f ${stub}.sff.txt ]; then
     echo "Generating .sff.txt file"  >> AN_Progress.txt
     sffinfo $1 >${stub}.sff.txt
 fi
