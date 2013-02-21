@@ -285,11 +285,6 @@ do
 	    exit $xs
 	fi
 
-	#Temp debug
-	#cd ..
-	#tar czf ${stub}_split.tar.gz ${stub}_split
-	#cd ${stub}_split
-	
 	echo "Clustering PyroDist output (clustered mode)"  >> ../AN_Progress.txt
 	
 	for c in C*
@@ -473,6 +468,8 @@ Map.pl All_Good.map < All_Good_U.list > All_Good.list
 cut -d" " -f1,2 All_Good.list > All_Good.plot
 
 CSV.pl $otudist < All_Good.list > OTU_table.csv
-Typical.pl $otudist All_Good.fa All_Good.list > OTUs.fa
-Diversity.pl < OTU_table.csv > Diversity.csv
+Typical.pl $otudist All_Good.fa All_Good.list > OTUs_All_Samples.fasta
+Diversity.pl < OTU_table.csv > Diversity_estimats.csv
+
+tar czf Clean_Sequences_w_Abundance.tar.gz *_F_Good.fa
 
