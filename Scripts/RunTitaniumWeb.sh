@@ -469,7 +469,7 @@ cut -d" " -f1,2 All_Good.list > All_Good.plot
 
 CSV.pl $otudist < All_Good.list > OTU_table.csv
 Typical.pl $otudist All_Good.fa All_Good.list > OTUs_All_Samples.fasta
-Diversity.pl < OTU_table.csv > Diversity_estimats.csv
+Diversity.pl < OTU_table.csv > OTU_Diversity_Estimates.csv
 
 tar czf Clean_Sequences_w_Abundance.tar.gz *_F_Good.fa
 
