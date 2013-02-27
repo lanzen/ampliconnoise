@@ -161,7 +161,7 @@ do
 
     if [ $size -lt $min_size ] ; then
 	echo "WARNING: Insufficient reads remain after filtering. The dataset will not be processed further" >> AN_Progress.txt
-	exit -1
+#	exit -1
     elif [ $size -lt $max_size ] ; then
 
 	## ___ RUNNING NORMAL PYRONOISE AND SEQNOISE ___
