@@ -71,14 +71,13 @@ if [ ${1: -3} == ".gz" ]
 then
 	stub=${1//.gz}
 	gunzip $1
-elif [ ${1: -4} == ".sff" ]
+elif [ ${1: -4} == ".sff" || ${1: -4} == ".txt" ]
 then
    stub=$1
 else
-	echo "Error: Incorrect input file format (only ".sff" or ".gz", gzipped SFF, allowed)" >> AN_Progress.txt
+	echo "Error: Incorrect input file format (only ".sff", ".txt" or ".gz", gzipped SFF, allowed)" >> AN_Progress.txt
   	exit -1 
 fi
-
 
 stub=${stub//.sff}
 stub=${stub//.txt}
@@ -115,7 +114,7 @@ echo "Primer sequence: $primer"  >> AN_Progress.txt
 
 if [ ! -f ${stub}.sff.txt ]; then
     echo "Generating .sff.txt file"  >> AN_Progress.txt
-    sffinfo $1 >${stub}.sff.txt
+    sffinfo $stub.sff >${stub}.sff.txt
 fi
 
 xs=$?
