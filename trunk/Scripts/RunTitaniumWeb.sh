@@ -67,7 +67,19 @@ fi
 
 otudist=$2
 
-stub=${1//.sff}
+if [ ${1: -3} == ".gz" ]
+	stub=${1//.gz}
+	gunzip $1
+elif
+   [ ${1: -4} == ".sff" ]
+   stub=$1
+else
+	echo "Error: Incorrect input file format (only ".sff" or ".gz", gzipped SFF, allowed)" >> AN_Progress.txt
+  	exit -1 
+fi
+
+
+stub=${stub//.sff}
 stub=${stub//.txt}
 
 if [ -f AN_Progress.txt ]; then
