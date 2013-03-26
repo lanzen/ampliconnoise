@@ -71,7 +71,8 @@ if [ ${1: -3} == ".gz" ]
 then
 	stub=${1//.gz}
 	gunzip $1
-elif [ ${1: -4} == ".sff" || ${1: -4} == ".txt" ]
+
+elif [ ${1: -4} == ".sff" ] 
 then
    stub=$1
 else
