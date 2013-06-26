@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#barcode file
+# barcode file
 bc=keys.csv
 nodes=32
 snodes=1
