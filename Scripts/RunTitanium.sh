@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# barcode file
+#barcode file
 bc=keys.csv
-nodes=32
+nodes=16
 snodes=1
 min_size=50
 max_size=50000
@@ -78,7 +78,7 @@ split()
 		if [ -f ${stub}.sff.txt ]; then
     			echo "Using barcodes file $bc for splitting"
     			echo "$primer $bc"
-			SplitKeys.pl $primer $bc < ${stub}.sff.txt > matching.fasta 2>nonmatching.fasta
+			SplitKeys.pl $primer $bc < ${stub}.sff.txt > splitkeys.stats 2>nonmatching.fasta
 		fi
 	else
     		echo "No barcode file found aborting..."
@@ -114,6 +114,8 @@ case $1 in
         seqnoise)
         ;;
         perseus)
+	;;
+	perseusd)
         ;;
         otus)
         ;;
@@ -139,7 +141,7 @@ case $1 in
 	;;
 	*)
         	echo "Usage: RunTitanium.sh all sfffile"
-        	echo "RunTitanium.sh [pyrnoise|seqnoise|perseus|otus|filter|all]"
+        	echo "RunTitanium.sh [pyrnoise|seqnoise|perseus|perseusd|otus|filter|all]"
         	exit
         ;;
 
@@ -312,6 +314,25 @@ seqnoise()
 
 perseus()
 {
+        echo "Running Perseus for ${stub}"
+        del=s${spyro}_T${length}_s${sseq}_
+        sed "s/$del//g" ${sstub}_cd.fa > ${stub}_F.fa
+	echo ${stub}_F.fa
+        Perseus -sin ${stub}_F.fa > ${stub}_F.per
+        xs=$?
+        if [[ $xs != 0 ]]; then
+                echo "Perseus exited with status $xs"
+                exit $xs
+        fi
+
+	Class.pl ${stub}_F.per $alpha $beta > ${stub}_F.class
+
+        FilterGoodClass.pl ${stub}_F.fa ${stub}_F.class 0.5 1>${stub}_F_Chi.fa 2>${stub}_F_Good.fa
+}
+
+
+perseusd()
+{
 	echo "Running PerseusD for ${stub}"
         del=s${spyro}_T${length}_s${sseq}_
         sed "s/$del//g" ${sstub}_cd.fa > ${stub}_F.fa
@@ -377,6 +398,9 @@ do
 			;;
 		perseus)
 			perseus		
+			;;
+		perseusd)
+		        perseusd
 			;;
 		otus)
 			;;
@@ -445,6 +469,8 @@ case $1 in
         ;;
         perseus)
         ;;
+        perseusd)
+        ;;    
 	filter)
 	;;
         otus)

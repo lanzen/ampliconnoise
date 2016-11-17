@@ -18,6 +18,14 @@ if($ARGV[3] ne undef){
   $maxFlows = $ARGV[3];
 }
 
+
+$line = <STDIN>; chomp($line);
+my @tokens = split (/ /,$line);
+
+my $keySeq = $tokens[0];
+
+my $flowSeq = $tokens[1];
+
 my $ffile = "${out}.fa";
 my $dfile = "${out}.dat";
 open(FFILE, ">${ffile}") or die "Can't open ${out}.fa\n";
@@ -39,8 +47,8 @@ while(my $line = <STDIN>){
 	my $read;
 	my $newLength = 0;
 
-	#print "$length\n";
-	#print "$length @flows\n";
+#	print "$length\n";
+#	print "$length @flows\n";
 	while($newLength*4 < $length){
 	    my $signal = 0;
 	    my $noise  = 0;
@@ -56,7 +64,7 @@ while(my $line = <STDIN>){
 		
 	    }
     
-	    if($noise > 0 || $signal == 0){
+	    if($noise > 0){
 		last;
 	    }
 
@@ -64,10 +72,10 @@ while(my $line = <STDIN>){
 	}
 
 	$length = $newLength*4;
-
+#	print "$length\n";
 	my $read = flowToSeq($length,@flows);
-	   
-	if($length >= $minFlows && $read=~/^TCAG.*(${primer}.*)/){
+#	print "$read\n";	   
+	if($length >= $minFlows && $read=~/^${keySeq}.*(${primer}.*)/){
 	    if($length > $maxFlows){
 	    	$length = $maxFlows;
 	    }
@@ -96,7 +104,7 @@ close(FFILE);
 open my $in,  '<',  $dfile      or die "Can't read old file: $!";
 open my $out, '>', "$dfile.new" or die "Can't write new file: $!";
 
-print $out "$nClean $maxFlows\n";
+print $out "$nClean $maxFlows $keySeq $flowSeq\n";
 
 while( <$in> )
 {     
@@ -112,11 +120,9 @@ sub flowToSeq()
 {
     my ($length, @flowgram) = @_;
     my $retSeq = "";
-
     for(my $i = 0; $i < $length; $i++){
 	my $signal = floor($flowgram[$i] + 0.5);
-	my $base   = substr($flowSeq, $i % 4, 1);
-
+	my $base   = substr($flowSeq, $i, 1);
 	for(my $j = 0; $j < $signal; $j++){
 	    $retSeq .= $base;
 	}
@@ -128,8 +134,7 @@ sub flowToSeq()
 sub translateIUPAC()
 {
   my ($seq) = @_;
-$seq=~s/W/\[AT\]/g;  
-$seq=~s/B/\[CGT\]/g;
+  $seq=~s/B/\[CGT\]/g;
   $seq=~s/S/\[GC\]/g;    
   $seq=~s/N/\[ACTG\]/g;
   $seq=~s/Y/\[CT\]/g;

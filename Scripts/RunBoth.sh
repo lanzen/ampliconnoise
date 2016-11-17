@@ -5,16 +5,16 @@ bc=keys.csv
 nodes=32
 snodes=1
 min_size=50
-max_size=50000
+max_size=40000
 #Fixes warning message with uDAPL error message appearing:
 mpiextra="--mca btl tcp,self" 
 
-export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_E123.dat
+export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_Titanium.dat
 export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/Tran.dat
 
 #hardcoded parameters for AmpliconNoise
 
-length=220
+length=400
 #truncation length
 
 spyro=60
@@ -23,7 +23,7 @@ spyro=60
 cpyro=0.01
 #PyroNoise cluster init
 
-sseq=30
+sseq=25
 #SeqNoise cluster size
 
 cseq=0.08
@@ -35,19 +35,10 @@ alpha=-7.5
 beta=0.5
 #Perseus logit gradient
 
-minflows=360
-
-maxflows=360
-
 #file locations
 
-lastline=$(tail -n 1 $bc; echo x); lastline=${lastline%x}
-if [ "${lastline: -1}" != $'\n' ]; then
-    echo >> $bc
-fi
-
-
 primerfile=primer.fasta
+reversefile=reverse.fasta
 
 #read in primer sequence
 if [ ! -f $primerfile ]; then
@@ -62,6 +53,22 @@ else
         done < $primerfile
 fi
 echo "Primer sequence: $primer"
+
+#read in primer sequence
+if [ ! -f $reversefile ]; then
+        echo "Can't find file $reversefile containing the reverse primer sequence!"
+        exit
+else
+        while read line; do
+        if [ "${line:0:1}" != ">" ]; then
+                reverse=$line
+                break
+        fi
+        done < $reversefile
+fi
+echo "Primer sequence: $reverse"
+
+
 
 split()
 {
@@ -78,7 +85,7 @@ split()
 		if [ -f ${stub}.sff.txt ]; then
     			echo "Using barcodes file $bc for splitting"
     			echo "$primer $bc"
-			SplitKeys.pl $primer $bc < ${stub}.sff.txt > splitkeys.stats 2>nonmatching.fasta
+			SplitKeysBoth.pl $primer $reverse $bc < ${stub}.sff.txt > matching.fasta 2>nonmatching.fasta
 		fi
 	else
     		echo "No barcode file found aborting..."
@@ -93,7 +100,7 @@ if [ -f All_Good.fa ]; then
 	rm All_Good.fa
 fi
 
-echo -e 'Sample\tTotal\tPre-filtered\tUnique\tChimeric\tCleanSeq\tCleanReads' > AN_stats.txt
+echo -e 'Sample\tTotal reads\tPre-filtered reads\tUnique sequences\tChimeric sequences\tRemaining unique sequences\tRemaining clean reads' > AN_stats.txt
 
 filter()
 {
@@ -102,7 +109,7 @@ filter()
 	do 
     		file=${stub}.raw
     		if [ -f ${stub}.raw ]; then	
-			CleanMinMax.pl $primer $stub $minflows $maxflows < $file
+			CleanBoth.pl $primer $reverse $stub < $file
     		fi
 	done < $bc
 }
@@ -114,8 +121,6 @@ case $1 in
         ;;
         perseus)
         ;;
-        perseusd)
-	;;
         otus)
         ;;
 	split)
@@ -140,7 +145,7 @@ case $1 in
 	;;
 	*)
         	echo "Usage: RunTitanium.sh all sfffile"
-        	echo "RunTitanium.sh [pyrnoise|seqnoise|perseus|perseusd|otus|filter|all]"
+        	echo "RunTitanium.sh [pyronoise|seqnoise|perseus|otus|filter|all]"
         	exit
         ;;
 
@@ -161,7 +166,7 @@ echo "Primer sequence: $primer"
 
 count=0
 
-while IFS=, read stub barcode
+while IFS=, read stub barcode revBarcode
 do
                 barcodes[$count]=$barcode
                 stubs[$count]=$stub
@@ -205,7 +210,6 @@ pyronoise()
         	fi
 
         	echo "Cropping barcodes, primes and low quality end (at 400 bp)"
-        	Parse.pl ${barcode}${primer} $length < ${pstub}_cd.fa > ${pstub}_T${length}.fa
 	fi
 }
 
@@ -270,7 +274,6 @@ pyronoisesplit()
 	
 	cp All_s${spyro}.mapping ../${pstub}.mapping
 	cd ..
-        Parse.pl ${barcode}${primer} $length < ${pstub}_cd.fa > ${pstub}_T${length}.fa
 }
 
 
@@ -285,7 +288,7 @@ seqnoise()
 		fi
 
 		echo "Running SeqDist for ${stub}"
-        	mpirun $mpiextra -np $tnodes SeqDist -in ${pstub}_T${length}.fa > ${pstub}_T${length}.seqdist
+        	mpirun $mpiextra -np $tnodes SeqDist -in ${pstub}_B.fa > ${pstub}_B.seqdist
         	xs=$?
         	if [[ $xs != 0 ]]; then
         		echo "SeqDist exited with status $xs"
@@ -293,7 +296,7 @@ seqnoise()
         	fi
 
         	echo "Clustering SeqDist output for ${stub}"
-        	FCluster -in ${pstub}_T${length}.seqdist -out ${pstub}_T${length} > ${pstub}_T${length}.fcout
+        	FCluster -in ${pstub}_B.seqdist -out ${pstub}_B > ${pstub}_B.fcout
         	xs=$?
         	if [[ $xs != 0 ]]; then
         		echo "FCluster exited with status $xs"
@@ -301,7 +304,7 @@ seqnoise()
         	fi
 
         	echo "Running SeqNoise for ${stub}"
-       		 mpirun $mpiextra -np $tnodes SeqNoise -in ${pstub}_T${length}.fa -din ${pstub}_T${length}.seqdist -lin ${pstub}_T${length}.list -out ${sstub} -s $sseq -c $cseq -min ${pstub}.mapping > ${sstub}.snout
+       		 mpirun $mpiextra -np $tnodes SeqNoise -in ${pstub}_B.fa -din ${pstub}_B.seqdist -lin ${pstub}_B.list -out ${sstub} -s $sseq -c $cseq -min ${pstub}.mapping > ${sstub}.snout
         	xs=$?
         	if [[ $xs != 0 ]]; then
         		echo "SeqNoise exited with status $xs"
@@ -312,23 +315,34 @@ seqnoise()
 
 perseus()
 {
-        echo "Running Perseus for ${stub}"
-        del=s${spyro}_T${length}_s${sseq}_
-        sed "s/$del//g" ${sstub}_cd.fa > ${stub}_F.fa
-	echo ${stub}_F.fa
-        Perseus -sin ${stub}_F.fa > ${stub}_F.per
-        xs=$?
-        if [[ $xs != 0 ]]; then
-                echo "Perseus exited with status $xs"
-                exit $xs
-        fi
+        echo "Running PerseusD for ${stub}"
+        #del=s${spyro}_T${length}_s${sseq}_
+        #sed "s/$del//g" ${sstub}_cd.fa > ${stub}_F.fa
+	#if [ ! -f ${stub}_F.per ]; then
+	#	mkdir ${stub}_F_Per
 
-	Class.pl ${stub}_F.per $alpha $beta > ${stub}_F.class
+	#	cp ${stub}_F.fa ${stub}_F_Per
+		
+	#	cd ${stub}_F_Per
+        	
+	#	Perseus2 -sin ${stub}_F.fa > ${stub}_F.per&
 
-        FilterGoodClass.pl ${stub}_F.fa ${stub}_F.class 0.5 1>${stub}_F_Chi.fa 2>${stub}_F_Good.fa
+	#	cd ..
+	#fi
+
+	if [ ! -f ${stub}_F_Good.fa ]; then
+        	Class.pl ${stub}_F_Per/${stub}_F.per ${alpha} ${beta} > ${stub}_F.class
+        	xs=$?
+        	if [[ $xs != 0 ]]; then
+                	echo "Persus exited with status $xs"
+                	exit $xs
+		fi
+        	./FilterGoodClass.pl ${stub}_F.fa ${stub}_F.class 0.5 1>${stub}_F_Chi.fa 2>${stub}_F_Good.fa
+	fi
 }
 
-perseusd()
+
+perseusD()
 {
 	echo "Running PerseusD for ${stub}"
         del=s${spyro}_T${length}_s${sseq}_
@@ -377,7 +391,7 @@ do
 	barcode=${barcodes[$i]}
 	size=${cleanSizes[$i]}
 	pstub=${stub}_s${spyro}
-	sstub=${pstub}_T${length}_s${sseq}
+	sstub=${pstub}_B_s${sseq}
 	echo "Number of reads = ${size}"
 	if [ "$size" -gt "$min_size" ] ; then
 		case $1 in 
@@ -391,13 +405,14 @@ do
 			fi	
 			;;
 		seqnoise)
+			echo "${barcode}${primer} ${reverse} < ${pstub}_cd.fa"
+			ParseBoth.pl ${barcode}${primer} ${reverse} < ${pstub}_cd.fa > ${pstub}_B.fa
 			seqnoise				
 			;;
 		perseus)
-			perseus		
-			;;
-		perseusd)
-			perseusd		
+			if [ ! -f ${stub}_F_Good.fa ]; then
+				perseus	
+			fi	
 			;;
 		otus)
 			;;
@@ -466,8 +481,6 @@ case $1 in
         ;;
         perseus)
         ;;
-        perseusd)
-	;;
 	filter)
 	;;
         otus)

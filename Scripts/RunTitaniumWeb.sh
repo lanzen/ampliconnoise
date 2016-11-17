@@ -67,20 +67,7 @@ fi
 
 otudist=$2
 
-if [ ${1: -3} == ".gz" ]
-then
-	stub=${1//.gz}
-	gunzip $1
-
-elif [ ${1: -4} == ".sff" ] 
-then
-   stub=$1
-else
-	echo "Error: Incorrect input file format (only ".sff", ".txt" or ".gz", gzipped SFF, allowed)" >> AN_Progress.txt
-  	exit -1 
-fi
-
-stub=${stub//.sff}
+stub=${1//.sff}
 stub=${stub//.txt}
 
 if [ -f AN_Progress.txt ]; then
@@ -115,7 +102,7 @@ echo "Primer sequence: $primer"  >> AN_Progress.txt
 
 if [ ! -f ${stub}.sff.txt ]; then
     echo "Generating .sff.txt file"  >> AN_Progress.txt
-    sffinfo $stub.sff >${stub}.sff.txt
+    sffinfo $1 >${stub}.sff.txt
 fi
 
 xs=$?

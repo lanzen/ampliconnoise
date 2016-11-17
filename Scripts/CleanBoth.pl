@@ -7,16 +7,13 @@ my $nClean = 0;
 my $flowSeq = "TACG";
 
 my $primer    = &translateIUPAC($ARGV[0]);
-my $out       = $ARGV[1];
+my $revPrimer = reverse($ARGV[1]);
 
-my $minFlows=360;
-if($ARGV[2] ne undef){
-  $minFlows = $ARGV[2];
-}
-my $maxFlows=720;
-if($ARGV[3] ne undef){
-  $maxFlows = $ARGV[3];
-}
+$revPrimer =~ tr/[A,C,G,T]/[T,G,C,A]/; 
+$revPrimer = &translateIUPAC($revPrimer);
+
+my $out       = $ARGV[2];
+my $maxFlows = 800;
 
 my $ffile = "${out}.fa";
 my $dfile = "${out}.dat";
@@ -38,17 +35,16 @@ while(my $line = <STDIN>){
 	my $length = shift(@flows);
 	my $read;
 	my $newLength = 0;
-
+        my $noise  = 0;
+	my $signal = 0;
 	#print "$length\n";
 	#print "$length @flows\n";
 	while($newLength*4 < $length){
-	    my $signal = 0;
-	    my $noise  = 0;
-
+	    my $signalL = 0;	
 	    for($j = 0; $j < 4; $j++){
 		my $f = $flows[$j + 4*$newLength];
 		if($f > 0.5){
-		    $signal++;
+		    $signalL++;
 		    if($f < 0.7 || $f > 6.49){
 			$noise++;
 		    }
@@ -56,38 +52,36 @@ while(my $line = <STDIN>){
 		
 	    }
     
-	    if($noise > 0 || $signal == 0){
-		last;
+	    if($signalL == 0){
+		$signal++;
 	    }
 
 	    $newLength++;
 	}
-
-	$length = $newLength*4;
-
-	my $read = flowToSeq($length,@flows);
-	   
-	if($length >= $minFlows && $read=~/^TCAG.*(${primer}.*)/){
-	    if($length > $maxFlows){
-	    	$length = $maxFlows;
-	    }
-		    
-	    printf DFILE "$id $length ";
-	    for($j = 0; $j < $maxFlows; $j++){
-		printf DFILE "$flows[$j] ";
-	    }
+	$newLLength = 4*$newLength;
+	#print "$length $newLength $newLLength $noise\n";
+	if($noise <=  1 && $signal == 0){
+		my $read = flowToSeq($length,@flows);
+	#	print "$read $revPrimer\n";	   
+		if($read=~/^TCAG.*(${primer}.*${revPrimer}).*$/){
+	  	#    	print "Good\n";
+	    		printf DFILE "$id $length ";
+	    		for($j = 0; $j < $maxFlows; $j++){
+				printf DFILE "$flows[$j] ";
+	    		}
 		
-	    printf DFILE "\n";
+	    		printf DFILE "\n";
 		
-	    printf FFILE ">$id\n";
-	    printf FFILE "$1\n";
+	    		printf FFILE ">$id\n";
+	    		printf FFILE "$1\n";
 		
-	    $nClean++;
-	    goto found;
-	}
+	    		$nClean++;
+	    		goto found;
+		}
 
-	found : $nTotal++;
-    }
+		found : $nTotal++;
+    	}
+}
 }
 
 close(DFILE);
@@ -128,8 +122,7 @@ sub flowToSeq()
 sub translateIUPAC()
 {
   my ($seq) = @_;
-$seq=~s/W/\[AT\]/g;  
-$seq=~s/B/\[CGT\]/g;
+  $seq=~s/B/\[CGT\]/g;
   $seq=~s/S/\[GC\]/g;    
   $seq=~s/N/\[ACTG\]/g;
   $seq=~s/Y/\[CT\]/g;

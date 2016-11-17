@@ -3,20 +3,25 @@ use POSIX;
 use IO::File;
 
 my $nReads = 0;
-my $nFlows = 400;
+my $nFlows = 800;
 
 my %counts = {};
 
 my $bGood   = 0;
 
-my %keys = {};
+my %keyMap = {};
 
 my $count = 0;
 my $fileName = 0;
 
-my $primer  = &translateIUPAC($ARGV[0]); 
-my $keyFile = $ARGV[1];
-my @names = ();
+my $primer  = &translateIUPAC($ARGV[0]);
+my $revPrimer = reverse($ARGV[1]);
+$revPrimer =~ tr/[A,C,G,T]/[T,G,C,A]/; 
+
+$revPrimer = &translateIUPAC($revPrimer);
+
+my $keyFile = $ARGV[2];
+
 open(FILE, "$keyFile") or die;
 
 while($line = <FILE>){
@@ -24,7 +29,11 @@ while($line = <FILE>){
 
     @tokens = split(/,/,$line);
 
-    my $tag = $tokens[1];
+    my $tagF = $tokens[1];
+    my $tagR = $tokens[2];	
+
+    $tagR = reverse($tagR);
+    $tagR =~ tr/[A,C,G,T]/[T,G,C,A]/;	
 
     $fileName = $tokens[0].".raw";
     #my $fileName = "Seq${count}.fa";
@@ -35,29 +44,22 @@ while($line = <FILE>){
 
     print $fh "$count $tag $fileName\n";
 
-    $keys{$tag} = $fh;
-    push(@names,$fileName);
+    $keyMap{$tagF}{$tagR} = $fh;
+
+    print "$tagF $tagR $fh\n";
+    
     #close($fh);
 
     $count++;
 }
 close(FILE);
 
-my $flowSeq = "";
-my $keySeq = "";
+my $flowSeq = "TACG";
+
 
 while(my $line = <STDIN>){
     chomp($line);
  
-    if($line =~ /Flow Chars:\s+([ACTG]+)/){
-	$flowSeq = $1;
-    }
-
-    if($line =~ /Key Sequence:\s+([ACTG]+)/){
-        $keySeq = $1;
-
-    }
-
     if($line =~ /\# of Reads:\s+(\d+)/){
 	$nReads = $1;
     }
@@ -126,12 +128,15 @@ while(my $line = <STDIN>){
 	}
 
 	my $read = flowToSeq($length,@{$flowRef});
-	#print "$bGood $read\n";
-	if($bGood == 1 && $read =~ /^${keySeq}(\w*)$primer.*$/){
-
-	    my $tag = $1;
-	    if($keys{$tag} ne undef){
-		my $fh = $keys{$tag};
+	print "$bGood $read\n";
+	print "$revPrimer\n";
+	if($bGood == 1 && $read =~ /^TCAG(\w*)$primer.*${revPrimer}(\w*)$/){
+	    my $tagF = $1;
+	    my $tagR = $2;
+	
+            print "$tagF $tagR $fh\n";	
+	    if($keyMap{$tagF}{$tagR} ne undef){
+		my $fh = $keyMap{$tagF}{$tagR};
 		
 		print $fh ">$id\n$length @{$flowRef}\n";
 
@@ -152,32 +157,11 @@ my $total = 0;
 foreach $key (keys %counts){
     my $count = $counts{$key};
     if($count > 0){
-	my $fh = $keys{$key};
-	close($fh);
 	print "$key $count\n";
 	$total += $count;
     }
 }
 print "$nReads $total\n";
-
-
-foreach $name(@names){
-
-	open my $in,  '<',  $name      or die "Can't read old file: $!";
-	open my $out, '>', "$name.new" or die "Can't write new file: $!";
-
-	print $out "$keySeq $flowSeq\n";
-
-	while( <$in> )
-	{     
-    		print $out $_;
-	}
-
-	close $out;
-
-	rename("$name.new", $name);
-}
-
 
 sub flowToSeq()
 {
@@ -186,7 +170,7 @@ sub flowToSeq()
 
     for(my $i = 0; $i < $length; $i++){
 	my $signal = floor($flowgram[$i] + 0.5);
-	my $base   = substr($flowSeq, $i, 1);
+	my $base   = substr($flowSeq, $i % 4, 1);
 
 	for(my $j = 0; $j < $signal; $j++){
 	    $retSeq .= $base;

@@ -2,19 +2,19 @@
 
 #barcode file
 bc=keys.csv
-nodes=32
+nodes=4
 snodes=1
 min_size=50
 max_size=50000
 #Fixes warning message with uDAPL error message appearing:
 mpiextra="--mca btl tcp,self" 
 
-export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_E123.dat
+export PYRO_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/LookUp_Titanium.dat
 export SEQ_LOOKUP_FILE=$AMPLICON_NOISE_HOME/Data/Tran.dat
 
 #hardcoded parameters for AmpliconNoise
 
-length=220
+length=400
 #truncation length
 
 spyro=60
@@ -23,7 +23,7 @@ spyro=60
 cpyro=0.01
 #PyroNoise cluster init
 
-sseq=30
+sseq=25
 #SeqNoise cluster size
 
 cseq=0.08
@@ -37,17 +37,17 @@ beta=0.5
 
 minflows=360
 
-maxflows=360
+maxflows=720
 
 #file locations
+
+primerfile=primer.fasta
 
 lastline=$(tail -n 1 $bc; echo x); lastline=${lastline%x}
 if [ "${lastline: -1}" != $'\n' ]; then
     echo >> $bc
 fi
 
-
-primerfile=primer.fasta
 
 #read in primer sequence
 if [ ! -f $primerfile ]; then
@@ -95,14 +95,15 @@ fi
 
 echo -e 'Sample\tTotal\tPre-filtered\tUnique\tChimeric\tCleanSeq\tCleanReads' > AN_stats.txt
 
+
 filter()
 {
 	echo "filter:"
 	while IFS=, read stub barcode
 	do 
     		file=${stub}.raw
-    		if [ -f ${stub}.raw ]; then	
-			CleanMinMax.pl $primer $stub $minflows $maxflows < $file
+    		if [ -f ${stub}.raw ]; then
+			CleanAcyclic.pl $primer $stub $minflows $maxflows < $file	
     		fi
 	done < $bc
 }
@@ -113,9 +114,9 @@ case $1 in
         seqnoise)
         ;;
         perseus)
-        ;;
-        perseusd)
 	;;
+	perseusd)
+        ;;
         otus)
         ;;
 	split)
@@ -205,6 +206,7 @@ pyronoise()
         	fi
 
         	echo "Cropping barcodes, primes and low quality end (at 400 bp)"
+#THIS STILL DOES NOT WORK FOR cropped barcodes!!
         	Parse.pl ${barcode}${primer} $length < ${pstub}_cd.fa > ${pstub}_T${length}.fa
 	fi
 }
@@ -257,7 +259,7 @@ pyronoisesplit()
 	for dir in C*
 	do
         	if [ ! -f ${dir}/${dir}_s${spyro}_cd.fa ] ; then
-                	mpirun -np $nodes PyroNoiseM -din ${dir}/${dir}.dat -out ${dir}/${dir}_s${spyro} -lin ${dir}/${dir}_X.list -s $spyro -c $cpyro > ${dir}/${dir}_${spyro}.pout
+                	mpirun -np $nodes PyroNoiseA -din ${dir}/${dir}.dat -out ${dir}/${dir}_s${spyro} -lin ${dir}/${dir}_X.list -s $spyro -c $cpyro > ${dir}/${dir}_${spyro}.pout
         	fi
 	done
 
@@ -328,6 +330,7 @@ perseus()
         FilterGoodClass.pl ${stub}_F.fa ${stub}_F.class 0.5 1>${stub}_F_Chi.fa 2>${stub}_F_Good.fa
 }
 
+
 perseusd()
 {
 	echo "Running PerseusD for ${stub}"
@@ -397,7 +400,7 @@ do
 			perseus		
 			;;
 		perseusd)
-			perseusd		
+		        perseusd
 			;;
 		otus)
 			;;
@@ -467,7 +470,7 @@ case $1 in
         perseus)
         ;;
         perseusd)
-	;;
+        ;;    
 	filter)
 	;;
         otus)

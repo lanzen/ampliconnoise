@@ -77,7 +77,7 @@ split()
 		if [ -f ${stub}.sff.txt ]; then
     			echo "Using barcodes file $bc for splitting"
     			echo "$primer $bc"
-			SplitKeys.pl $primer $bc < ${stub}.sff.txt > matching.fasta 2>nonmatching.fasta
+			SplitKeys.pl $primer $bc < ${stub}.sff.txt > splitkeys.stats 2>nonmatching.fasta
 		fi
 	else
     		echo "No barcode file found aborting..."
