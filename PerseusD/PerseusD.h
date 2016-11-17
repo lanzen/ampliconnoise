@@ -96,6 +96,7 @@ typedef struct s_Data
 
 #define GAP_PENALTY_N         15.0
 #define HOMOPOLYMER_PENALTY   4.0
+#define TERMINAL_PENALTY      1.39
 
 #define MIS_MATCH       '#'
 
@@ -142,6 +143,12 @@ typedef struct s_Align
   int *anD;
 
   int *anR;
+
+  double *adD;
+
+  double *adR;
+
+  double dDiff;
 } t_Align;
 
 typedef struct s_Result
@@ -193,5 +200,11 @@ int getBestChimera(int nK, t_Data *ptRefData, int* pnP1, int* pnP2, int *pnSplit
 int getBestTrimera(int nK, t_Data *ptRefData, int* pnT1, int* pnT2, int* pnT3, int *pnSplit1, int *pnSplit2, int* anRestrict, int nLenI, t_Align* atAlign, int* anD, int* anR, int* anBestD, int *anBestR);
 
 void sortByFreq(t_Data *ptData);
+
+double getBestChimeraD(int nK, t_Data *ptRefData, int* pnP1, int* pnP2, int *pnSplit, int* anRestrict, int nLenI, t_Align* atAlign, double* adD, double* adR, int* anBestD, int* anBestR);
+
+double getBestTrimeraD(int nK, t_Data *ptRefData, int* pnT1, int* pnT2, int* pnT3, int *pnSplit1, int *pnSplit2, int* anRestrict, int nLenI, t_Align* atAlign, double* adD, double* adR, int* anBestD, int *anBestR);
+
+double distN(char cA, char cB);
 
 #endif

@@ -16,7 +16,7 @@
 #include "PerseusD.h"
 
 /*global constants*/
-static char *usage[] = {"PerseusD - slays monsters\n",
+static char *usage[] = {"PerseusD2 - slays monsters\n",
 			"-sin     string            seq file name\n",
 			"Options:\n",
 			"-c       float,float       set alpha,beta default = -5.54,0.33\n",
@@ -483,6 +483,7 @@ void needlemanWunsch(t_Align *ptAlign, const char* acA, const char* acB, int nLe
   char    *acAlignA   = NULL, *acAlignB = NULL;
   int    nCount = 0;
   int    i = 0, j = 0, nD = 0, nR = 0; 
+  double dR = 0.0, dD = 0.0;
   
   aadFMatrix = (double **) malloc((nLenA + 1)*sizeof(double *));
   aanMoves   = (int **)    malloc((nLenA + 1)*sizeof(int *));
@@ -636,6 +637,15 @@ void needlemanWunsch(t_Align *ptAlign, const char* acA, const char* acB, int nLe
   if(!ptAlign->anR)
     goto memoryError;
 
+  ptAlign->adD = (double *) malloc(nLenA*sizeof(double));
+  if(!ptAlign->adD)
+    goto memoryError;
+
+  ptAlign->adR = (double *) malloc(nLenA*sizeof(double));
+  if(!ptAlign->adR)
+    goto memoryError;
+
+
   ptAlign->anMapD = (int *) malloc(nLenA*sizeof(int));
   if(!ptAlign->anMapD)
     goto memoryError;
@@ -644,8 +654,32 @@ void needlemanWunsch(t_Align *ptAlign, const char* acA, const char* acB, int nLe
   if(!ptAlign->anMapR)
     goto memoryError;
 
-  nCount = 0; nD = 0; 
+  nCount = 0; dD = 0; 
+  for(i = 0; i < ptAlign->nLen; i++){
+    if(ptAlign->acA[i] == GAP){
+      dD+=GAP_PENALTY_N;
+    }
+    else if(ptAlign->acA[i] == T_GAP){
 
+    }
+    else{
+      if(ptAlign->acB[i] == GAP){
+	dD+=GAP_PENALTY_N;
+      }
+      else if(ptAlign->acB[i] == T_GAP){
+	dD+=TERMINAL_PENALTY;
+      }
+      else{
+	dD+=distN(ptAlign->acA[i],ptAlign->acB[i]);
+      }
+     
+      ptAlign->adD[nCount] = dD;
+      nCount++; 
+    }
+    
+  }
+
+  nCount = 0; nD = 0; 
   for(i = 0; i < ptAlign->nLen; i++){
     if(ptAlign->acA[i] == GAP){
       nD++;
@@ -673,8 +707,35 @@ void needlemanWunsch(t_Align *ptAlign, const char* acA, const char* acB, int nLe
 
   ptAlign->nDiff = nD;
 
-  nCount = 0; nR = 0; 
+  ptAlign->dDiff = dD;
 
+  nCount = 0; dR = 0.0; 
+  for(i = ptAlign->nLen - 1; i >= 0; i--){
+    
+    if(ptAlign->acA[i] == GAP){
+      dR+=GAP_PENALTY_N;
+    }
+    else if(ptAlign->acA[i] == T_GAP){
+
+    }
+    else{
+      if(ptAlign->acB[i] == GAP){
+	dR+=GAP_PENALTY_N;
+      }
+      else if(ptAlign->acB[i] == T_GAP){
+	dR+=TERMINAL_PENALTY;
+      }
+      else{
+	dR+=distN(ptAlign->acA[i],ptAlign->acB[i]);
+      }
+      
+      ptAlign->adR[nCount] = dR;
+      
+      nCount++; 
+    }
+  }
+
+  nCount = 0; nR = 0; 
   for(i = ptAlign->nLen - 1; i >= 0; i--){
     
     if(ptAlign->acA[i] == GAP){
@@ -688,7 +749,7 @@ void needlemanWunsch(t_Align *ptAlign, const char* acA, const char* acB, int nLe
 	nR++;
       }
       else if(ptAlign->acB[i] == T_GAP){
-	nR++;
+	//nR++;
       }
       else if(ptAlign->acB[i] != ptAlign->acA[i]){
 	nR++;
@@ -716,6 +777,7 @@ void needlemanWunsch(t_Align *ptAlign, const char* acA, const char* acB, int nLe
   fflush(stderr);
   exit(EXIT_FAILURE);
 }
+
 
 char* revstr(char *szID, char cD)
 {
@@ -1851,7 +1913,7 @@ int alignAll(int nI, int nLenI, int *pnBest, int *pnBestJ, int *anRestrict, int 
   for(j = 0; j < nK; j++){
     int     nDist = 0;
 
-    if(anChi[j] == FALSE && (strcmp(ptRefData->aszID[j],ptSeqData->aszID[nI]) != 0 && ptRefData->anFreq[j] > ptParams->nSkew*ptSeqData->anFreq[nI])){
+    if(anChi[j] == FALSE && (strcmp(ptRefData->aszID[j],ptSeqData->aszID[nI]) != 0 && ptRefData->anFreq[j] >= ptParams->nSkew*ptSeqData->anFreq[nI])){
 
       needlemanWunsch(&atAlign[j], &ptSeqData->acSequences[nI*nNLen], &ptRefData->acSequences[j*nKLen], nLenI, ptRefData->anLen[j]);
       
@@ -1874,6 +1936,59 @@ int alignAll(int nI, int nLenI, int *pnBest, int *pnBestJ, int *anRestrict, int 
   (*pnBestJ) = nBestJ;
 
   return nCompare;
+}
+
+double getBestChimeraD(int nK, t_Data *ptRefData, int* pnP1, int* pnP2, int *pnSplit, int* anRestrict, int nLenI, t_Align* atAlign, double* adD, double* adR, int* anBestD, int* anBestR)
+{
+  int j = 0, k = 0;
+  int nP1 = -1, nP2 = -1;
+  int nSplit;
+  double dBestChi = BIG_DBL;
+  int nBestChi = -1;
+
+  for(k = 0; k < nLenI; k++){
+    adD[k] = BIG_DBL; anBestD[k] = -1;
+
+    for(j = 0; j < nK; j++){
+      if(anRestrict[j] == FALSE){
+
+	if(atAlign[j].adD[k]  < adD[k] || atAlign[j].adD[k] == adD[k] && ptRefData->anFreq[j] > ptRefData->anFreq[anBestD[k]]){
+	  adD[k]     = atAlign[j].adD[k];
+	  anBestD[k] = j;
+	}
+	    
+      }
+    }
+  }
+      
+  for(k = 0; k < nLenI; k++){
+    adR[k] = BIG_DBL; anBestR[k] = -1;
+
+    for(j = 0; j < nK; j++){
+      if(anRestrict[j] == FALSE){
+	if(atAlign[j].adR[k] < adR[k] || atAlign[j].adR[k] == adR[k] && ptRefData->anFreq[j] > ptRefData->anFreq[anBestR[k]]){
+	  adR[k]     = atAlign[j].adR[k];
+	  anBestR[k] = j;
+	}
+      }
+    }
+  }
+    
+  for(k = 0; k < nLenI - 1; k++){
+    double dChi = adD[k] + adR[nLenI - k - 2];
+    if(dChi < dBestChi){
+      dBestChi = dChi;
+      nSplit = k;
+      nP1 = anBestD[k];
+      nP2 = anBestR[nLenI - k - 2];
+    }
+  }
+
+  *pnSplit = nSplit;
+  *pnP1 = nP1;
+  *pnP2 = nP2;
+  
+  return dBestChi;
 }
 
 int getBestChimera(int nK, t_Data *ptRefData, int* pnP1, int* pnP2, int *pnSplit, int* anRestrict, int nLenI, t_Align* atAlign, int* anD, int* anR, int* anBestD, int* anBestR)
@@ -1988,6 +2103,111 @@ int getBestTrimera(int nK, t_Data *ptRefData, int* pnT1, int* pnT2, int* pnT3, i
   free(aanBestT2);
 
   return nBestTri;
+}
+
+void allocateMatricesD(int nLenI, double ***paadT, int ***paanBestT, double ***paadT2, int ***paanBestT2)
+{
+  double **aadT     = NULL;
+  int **aanBestT = NULL;
+  double **aadT2     = NULL;
+  int **aanBestT2 = NULL;
+  int k = 0, l = 0, m = 0;
+
+  aadT     = (double **) malloc(nLenI*sizeof(double *));
+  aanBestT = (int **) malloc(nLenI*sizeof(int *));
+
+  for(k = 0; k < nLenI; k++){
+    aadT[k]     = (double *) malloc(nLenI*sizeof(double));
+    aanBestT[k] = (int *) malloc(nLenI*sizeof(int));
+    
+    for(l = 0; l < nLenI; l++){
+      aadT[k][l] = 0.0;
+      aanBestT[k][l] = 0;
+    }
+  }
+
+  aadT2     = (double **) malloc(nLenI*sizeof(double *));
+  aanBestT2 = (int **) malloc(nLenI*sizeof(int *));
+
+  for(k = 0; k < nLenI; k++){
+    aadT2[k]     = (double *) malloc(nLenI*sizeof(double));
+    aanBestT2[k] = (int *) malloc(nLenI*sizeof(int));
+    
+    for(l = 0; l < nLenI; l++){
+      aadT2[k][l] = 0.0;
+      aanBestT2[k][l] = 0;
+    }
+  }
+
+  *paadT = aadT;
+  *paanBestT = aanBestT; 
+  *paadT2 = aadT2;
+  *paanBestT2 = aanBestT2;
+
+  return;
+}
+
+double getBestTrimeraD(int nK, t_Data *ptRefData, int* pnT1, int* pnT2, int* pnT3, int *pnSplit1, int *pnSplit2, int* anRestrict, int nLenI, t_Align* atAlign, double* adD, double* adR, int* anBestD, int *anBestR)
+{
+  int j = 0, k = 0, l = 0;
+  double ** aadT = NULL;
+  int **aanBestT = NULL;
+  double **aadT2 = NULL;
+  int  **aanBestT2 = NULL;
+  double dBestTri = BIG_DBL;
+  int nT1 = -1, nT2 = -1, nT3 = -1, nSplit1 = -1, nSplit2 = -1;
+
+  allocateMatricesD(nLenI, &aadT,&aanBestT,&aadT2,&aanBestT2);
+
+  for(k = 0; k < nLenI; k++){
+    for(l = k; l < nLenI - 1; l++){
+      aadT[k][l] = BIG_DBL; aanBestT[k][l] = -1;
+	
+      for(j = 0; j < nK; j++){
+	if(anRestrict[j] == FALSE){
+	  double dX = atAlign[j].adD[l] - atAlign[j].adD[k];
+		
+	  if(dX < aadT[k][l] || dX == aadT[k][l] && ptRefData->anFreq[j] > ptRefData->anFreq[aanBestT[k][l]]){
+	    aadT[k][l] = dX;
+	    aanBestT[k][l] = j;
+	  }
+	  
+	}
+      }
+
+      aadT[k][l] += adD[k] + adR[nLenI - l - 2];
+
+      if(aadT[k][l] < dBestTri){
+	dBestTri = aadT[k][l];
+	nSplit1 = k;
+	nSplit2 = l;
+	nT1 = anBestD[k];
+	nT2 = aanBestT[k][l];
+	nT3 = anBestR[nLenI -l -2];
+      }
+    }
+  }
+
+  (*pnT1) = nT1;
+  (*pnT2) = nT2;
+  (*pnT3) = nT3;
+
+  (*pnSplit1) = nSplit1;
+  (*pnSplit2) = nSplit2;
+
+  for(j = 0; j < nLenI; j++){
+    free(aadT[j]);
+    free(aanBestT[j]);
+    free(aadT2[j]);
+    free(aanBestT2[j]);
+  }
+
+  free(aadT);
+  free(aanBestT);
+  free(aadT2);
+  free(aanBestT2);
+
+  return dBestTri;
 }
 
 /*void writeAlignment(int nLenI)
